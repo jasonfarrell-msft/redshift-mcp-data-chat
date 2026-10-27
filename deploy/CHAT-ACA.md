@@ -2,13 +2,21 @@
 
 ## Current deployment and legacy retirement — 2026-10-27
 
-Current chat revision: `ca-redshift-chat-bs01--prompt-849e6f254e`.
+Current chat revision: `ca-redshift-chat-bs01--errors-ceb4ca2929`.
 The chat no longer supplies an output-token ceiling or rejects completed answers
 solely for exceeding 16,000 characters; model/service output limits apply.
 Timeouts, concurrency limits and strict fresh MCP grounding remain unchanged.
 Prompts up to 32,000 characters are accepted. Longer pasted drafts remain intact
 with an explicit warning instead of browser-side truncation. This does not enable
 arbitrary SQL or unsupported calculations in a pasted prompt.
+Agent failures now have fixed reason-specific explanations and visible safe
+codes, including ANALYSIS_GROUP_LIMIT for the reproduced two-grouping-field
+MCP validation error. Rephrase-only failures do not offer a blind Retry.
+The supplied 2,947-character prompt was submitted through the real browser and
+showed the exact grouping explanation, not a generic outage. A supported
+2025 oil question still returned exact 21157564.26 bbl through fresh actual MCP
+tools. This release explains rejected analytics; it does not add unsupported
+SQL/ratio/revenue/data-quality capabilities.
 Current AWS-backed adapter revision:
 `ca-redshift-official-bs01--warm-bb275f8677`. Foundry agent3 and the chat health
 probe both use the official-backed endpoint below. AWS's published MCP server

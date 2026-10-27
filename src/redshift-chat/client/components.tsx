@@ -51,8 +51,21 @@ export function ConnectionStatus({ health, refreshing, onRefresh }: {
 export function ErrorNotice({ error, canRetry, onRetry }: {
   error: ApiError; canRetry: boolean; onRetry: () => void;
 }) {
+  const titles: Partial<Record<ApiError['code'], string>> = {
+    ANALYSIS_GROUP_LIMIT: 'Too many grouping fields.',
+    AGENT_TOOL_REJECTED: 'The analytics tool could not complete this request.',
+    AGENT_TOOL_LIMIT: 'This request exceeded the tool-call budget.',
+    AGENT_OUTPUT_LIMIT: 'The model reached its output limit.',
+    AGENT_INCOMPLETE: 'The agent did not finish its response.',
+    AGENT_INVALID_RESPONSE: 'The answer could not be verified.',
+    AGENT_RATE_LIMITED: 'Foundry is temporarily limiting requests.',
+  };
+  const needsRephrasing = [
+    'ANALYSIS_GROUP_LIMIT', 'AGENT_TOOL_REJECTED', 'AGENT_TOOL_LIMIT',
+    'AGENT_OUTPUT_LIMIT', 'AGENT_INVALID_RESPONSE',
+  ].includes(error.code);
   return <div className="error-notice" role="alert">
-    <div><strong>We couldn’t complete that request.</strong><p>{error.message}</p></div>
-    {canRetry && <button type="button" onClick={onRetry}>Retry <span className="sr-only">(uses another turn)</span></button>}
+    <div><strong>{titles[error.code] ?? 'We couldn’t complete that request.'}</strong><p>{error.message}</p><small>Error code: {error.code}</small></div>
+    {canRetry && !needsRephrasing && <button type="button" onClick={onRetry}>Retry <span className="sr-only">(uses another turn)</span></button>}
   </div>;
 }

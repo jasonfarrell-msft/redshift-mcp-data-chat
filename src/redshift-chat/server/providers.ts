@@ -82,14 +82,20 @@ export function createAgent(config: Config, caller?: ResponseCaller): Agent {
     try {
       const result = await call(agentPayload(config, request));
       if (result.status !== 'completed') {
-        throw new AppError(503, 'AGENT_UNAVAILABLE');
+        throw new AppError(503, result.incomplete_details?.reason === 'max_output_tokens'
+          ? 'AGENT_OUTPUT_LIMIT' : 'AGENT_INCOMPLETE');
       }
       const toolCalls = result.output.filter((item) => item.type === 'mcp_call');
+      if (toolCalls.length > LIMITS.toolCalls) throw new AppError(503, 'AGENT_TOOL_LIMIT');
       if (result.output.some((item) => item.type === 'mcp_approval_request') ||
-          toolCalls.length > LIMITS.toolCalls || toolCalls.some((item) =>
-        !ALLOWED_TOOLS.includes(item.name as typeof ALLOWED_TOOLS[number]) || item.error ||
-        (item.status !== undefined && item.status !== 'completed'))) {
-        throw new AppError(503, 'AGENT_UNAVAILABLE');
+          toolCalls.some((item) => !ALLOWED_TOOLS.includes(item.name as typeof ALLOWED_TOOLS[number]))) {
+        throw new AppError(503, 'AGENT_INVALID_RESPONSE');
+      }
+      if (toolCalls.some((item) => item.error || item.status === 'failed')) {
+        throw new AppError(503, 'AGENT_TOOL_REJECTED');
+      }
+      if (toolCalls.some((item) => item.status !== undefined && item.status !== 'completed')) {
+        throw new AppError(503, 'AGENT_INCOMPLETE');
       }
       const analyses = [];
       for (const item of toolCalls) {
@@ -97,7 +103,7 @@ export function createAgent(config: Config, caller?: ResponseCaller): Agent {
         if (item.name === 'analyze_data') analyses.push(validateAnalysis(value));
         else if (value.version !== '1' || value.schema !== 'oge_synthetic' ||
             !value.datasets || typeof value.datasets !== 'object' || Array.isArray(value.datasets)) {
-          throw new AppError(503, 'AGENT_UNAVAILABLE');
+          throw new AppError(503, 'AGENT_INVALID_RESPONSE');
         }
       }
       const answer = groundedReply(result.output_text, analyses);
@@ -111,8 +117,19 @@ export function createAgent(config: Config, caller?: ResponseCaller): Agent {
       const status = error && typeof error === 'object' && 'status' in error ? error.status : undefined;
       if (status === 401 || status === 403) {
         console.error(JSON.stringify({ event: 'agent_authorization_failed', upstreamStatus: status }));
+        throw new AppError(503, 'AGENT_FORBIDDEN');
       }
-      throw new AppError(503, status === 401 || status === 403 ? 'AGENT_FORBIDDEN' : 'AGENT_UNAVAILABLE');
+      if (status === 429) throw new AppError(503, 'AGENT_RATE_LIMITED');
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+      const nested = error && typeof error === 'object' && 'error' in error ? error.error : undefined;
+      const nestedCode = nested && typeof nested === 'object' && 'code' in nested ? nested.code : undefined;
+      if (status === 400 && (code === 'tool_user_error' || nestedCode === 'tool_user_error')) {
+        const message = error instanceof Error ? error.message : '';
+        // Recognize only the observed Pydantic rule; never forward its input values or raw message.
+        const groupLimit = /(?:^|\n)[ \t]*plan\.group_by[ \t]*\r?\n[ \t]*List should have at most 2 items\b/.test(message);
+        throw new AppError(503, groupLimit ? 'ANALYSIS_GROUP_LIMIT' : 'AGENT_TOOL_REJECTED');
+      }
+      throw new AppError(503, 'AGENT_UNAVAILABLE');
     }
   };
 }

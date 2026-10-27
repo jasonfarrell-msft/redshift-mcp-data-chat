@@ -387,8 +387,23 @@ start a new chain. Reset is explicit recovery and does not delete Foundry data.
   explicitly stale; a hanging cancelled probe cannot start an overlapping one.
   UI marks a displayed success stale at 30 seconds and offers manual refresh;
   it does not poll or spend tokens for health.
-- 16 KiB JSON body limit, 10-second body/headers deadlines, fixed sanitized API
+- 256 KiB JSON body limit, 10-second body/headers deadlines, fixed sanitized API
   error codes; prompts, cookies, tokens, provider bodies and answers are not logged.
+
+Failures are not all connection outages. The API/UI distinguishes MCP tool
+rejection, the two-field grouping limit, the four-tool-call budget, model-native
+output exhaustion, incomplete responses, verification failures, Foundry throttling
+and authorization failures. Unknown upstream failures remain explicitly unknown.
+Only fixed, allowlisted explanations and codes reach the browser or request logs;
+raw provider messages, rejected arguments and tool results are never exposed.
+Rephrase-only failures do not offer a blind Retry button.
+
+The supplied long data-quality prompt reproduced a Foundry HTTP 400
+`tool_user_error`: Pydantic rejected `plan.group_by` with `too_long` and
+"at most 2 items". This is an analysis-plan limit, not prompt truncation or a
+proven database outage. Ask for at most two of well/state/basin/operator per
+analysis. The other ratio/revenue/custom data-quality checks in that prompt
+remain unsupported; explaining a rejected request does not execute those checks.
 
 These are public-POC abuse controls, **not authentication, durable quotas or a
 financial cap**. Restart resets state. New cookies/IPs can bypass conversation

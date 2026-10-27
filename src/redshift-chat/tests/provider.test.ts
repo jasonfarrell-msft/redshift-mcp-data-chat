@@ -94,7 +94,8 @@ for (const status of [401, 403, 400, 429, 500, '401', '403', undefined]) {
     });
     await assert.rejects(() => agent({ message: 'private', signal: AbortSignal.timeout(100) }), (error: unknown) => {
       assert.equal((error as AppError).status, 503);
-      assert.equal((error as { code: string }).code, status === 401 || status === 403 ? 'AGENT_FORBIDDEN' : 'AGENT_UNAVAILABLE');
+      assert.equal((error as { code: string }).code, status === 401 || status === 403
+        ? 'AGENT_FORBIDDEN' : status === 429 ? 'AGENT_RATE_LIMITED' : 'AGENT_UNAVAILABLE');
       assert.doesNotMatch((error as Error).message, /sensitive|private/);
       return true;
     });
@@ -116,6 +117,58 @@ test('existing application errors pass through unchanged without an authorizatio
       (error: unknown) => error === original);
   }
   assert.equal(log.mock.callCount(), 0);
+});
+
+const groupValidation = '1 validation error for analyze_data\nplan.group_by\n' +
+  '  List should have at most 2 items after validation, not 4 [type=too_long, input_value=SECRET]\n';
+
+for (const [status, code, nestedCode, message, expected] of [
+  [400, 'tool_user_error', undefined, groupValidation, 'ANALYSIS_GROUP_LIMIT'],
+  [400, undefined, 'tool_user_error', groupValidation, 'ANALYSIS_GROUP_LIMIT'],
+  [400, 'tool_user_error', undefined, groupValidation.replaceAll('\n', '\r\n'), 'ANALYSIS_GROUP_LIMIT'],
+  [400, 'tool_user_error', undefined, groupValidation.replace('plan.group_by', 'plan.measures'), 'AGENT_TOOL_REJECTED'],
+  [400, 'tool_user_error', undefined, groupValidation.replace('at most 2 items', 'at most 3 items'), 'AGENT_TOOL_REJECTED'],
+  [400, 'tool_user_error', undefined, 'SECRET tool execution error', 'AGENT_TOOL_REJECTED'],
+  [400, undefined, undefined, groupValidation, 'AGENT_UNAVAILABLE'],
+  [500, 'tool_user_error', undefined, groupValidation, 'AGENT_UNAVAILABLE'],
+] as const) {
+  test(`upstream rejection safely classifies ${status}/${code}/${nestedCode}/${expected}/${message.length}`, async (t) => {
+    const log = t.mock.method(console, 'error', () => {});
+    let calls = 0;
+    const agent = createAgent(config, async () => {
+      calls++;
+      throw Object.assign(new Error(message), { status, code, error: { code: nestedCode }, responseId: 'private-id' });
+    });
+    await assert.rejects(() => agent({ message: 'SECRET prompt', signal: AbortSignal.timeout(100) }),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.code, expected);
+        assert.doesNotMatch(error.message, /SECRET|private-id|input_value|validation error|plan\.group_by/);
+        return true;
+      });
+    assert.equal(calls, 1);
+    assert.equal(log.mock.callCount(), 0);
+  });
+}
+
+test('model completion, tool budget and failed permitted tools have distinct safe reasons', async () => {
+  for (const [result, expected] of [
+    [success({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } }), 'AGENT_OUTPUT_LIMIT'],
+    [success({ status: 'incomplete', incomplete_details: null }), 'AGENT_INCOMPLETE'],
+    [success({ status: 'failed' }), 'AGENT_INCOMPLETE'],
+    [success({ output: Array.from({ length: 5 }, () => analysisCall()) }), 'AGENT_TOOL_LIMIT'],
+    [success({ output: [analysisCall(analysisOutput, { error: { message: 'SECRET' } })] }), 'AGENT_TOOL_REJECTED'],
+    [success({ output: [analysisCall(analysisOutput, { status: 'failed' })] }), 'AGENT_TOOL_REJECTED'],
+    [success({ output: [analysisCall(analysisOutput, { status: 'in_progress' })] }), 'AGENT_INCOMPLETE'],
+    [success({ output: [analysisCall(analysisOutput, { status: 'incomplete' })] }), 'AGENT_INCOMPLETE'],
+    [success({ output: [{ type: 'mcp_approval_request', name: 'SECRET' }] }), 'AGENT_INVALID_RESPONSE'],
+    [success({ output: [{ type: 'mcp_call', name: 'execute_sql', error: null }] }), 'AGENT_INVALID_RESPONSE'],
+    [success({ output_text: answer(), output: [] }), 'AGENT_INVALID_RESPONSE'],
+  ] as const) {
+    const agent = createAgent(config, async () => result);
+    await assert.rejects(() => agent({ message: 'Total?', signal: AbortSignal.timeout(100) }),
+      (error: unknown) => error instanceof AppError && error.code === expected && !error.message.includes('SECRET'));
+  }
 });
 
 test('empty/noncompleted/unknown-tool/approval-required output never becomes a successful answer', async () => {
@@ -278,7 +331,7 @@ test('official SDK accepts observed GA context plus analysis on first turn and f
   }
   await assert.rejects(() => agent({
     message: 'Analyze again', previousResponseId: next.id, signal: AbortSignal.timeout(1000),
-  }), (error: unknown) => error instanceof AppError && error.code === 'AGENT_UNAVAILABLE');
+  }), (error: unknown) => error instanceof AppError && error.code === 'AGENT_INVALID_RESPONSE');
   assert.equal(requests, 3);
 });
 
@@ -335,12 +388,12 @@ for (const [name, output] of [
 ] as const) {
   test(`two-document output rejects ${name}`, async () => {
     assert.throws(() => parseToolOutput(output),
-      (error: unknown) => error instanceof AppError && error.code === 'AGENT_UNAVAILABLE');
+      (error: unknown) => error instanceof AppError && error.code === 'AGENT_INVALID_RESPONSE');
     const agent = createAgent(config, async () => success({
       output_text: answer(), output: [analysisCall(output)],
     }));
     await assert.rejects(() => agent({ message: 'Total?', signal: AbortSignal.timeout(100) }),
-      (error: unknown) => error instanceof AppError && error.code === 'AGENT_UNAVAILABLE');
+      (error: unknown) => error instanceof AppError && error.code === 'AGENT_INVALID_RESPONSE');
   });
 }
 
@@ -388,7 +441,8 @@ test('paired output still rejects failed calls, nested errors and later invalid 
       output_text: answer(), output: [analysisCall(foundryOutput(analysisValue)), call],
     }));
     await assert.rejects(() => agent({ message: 'Total?', signal: AbortSignal.timeout(100) }),
-      (error: unknown) => error instanceof AppError && error.code === 'AGENT_UNAVAILABLE');
+      (error: unknown) => error instanceof AppError &&
+        ['AGENT_TOOL_REJECTED', 'AGENT_INVALID_RESPONSE'].includes(error.code));
   }
 });
 

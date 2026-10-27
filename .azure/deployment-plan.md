@@ -1,5 +1,94 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Explain agent and MCP failures — 2026-10-27
+
+Status: **Deployed; specific failure explanation and supported MCP analytics verified**.
+Recipe: existing AZCLI / snapshot-preserving ARM image-only release.
+The user confirmed the length fix and requests that remaining generic errors be
+fixed or explained. One fresh reproduction and one targeted diagnosis confirmed
+Foundry HTTP 400 / tool_user_error, validation path plan.group_by, type too_long,
+and the rule "List should have at most 2 items". The adapter's existing
+AnalysisPlan independently enforces that limit. This explains the supplied
+prompt's reproduced failure; it is not evidence that every earlier failure had
+the same cause or that Redshift was disconnected.
+
+Expose only fixed, safe failure codes/messages for this known rejection, general
+MCP tool failure, tool-call budget, model-native output exhaustion, incomplete
+response, failed format/grounding verification and Foundry throttling. The UI
+shows reason-specific headings and safe codes; rephrase-only failures do not
+offer a blind Retry. Preserve strict output/grounding checks and fail closed.
+Do not add SQL, ratio/revenue/custom data-quality capabilities or extra retries.
+
+Release scope: existing ca-redshift-chat-bs01, rg-redshift-bs01, subscription
+bb4b2781-6739-4fa1-994e-4ad6ce55c59c, Brazil South. Same previously approved
+target and in-memory chat-reset behavior; no new resource, RBAC role, identity,
+scale, model, agent or MCP change. Retain the current prompt-849e6f254e image
+for rollback. Build one immutable allowlisted Linux/AMD64 image; compare its
+compiled files to the reviewed local build. Validate the actual snapshot-based
+ARM template and effective what-if, permitting only image/revisionSuffix.
+Re-read and compare live state under the existing operator lock before PATCH;
+this is not atomic CAS. Verify unchanged configuration, identities, roles and
+official MCP after rollout.
+
+All validation checks pass — FAILURE EXPLANATIONS scope:
+- [x] Local tests, typecheck and production build; peer semantic challenge addressed.
+- [x] Exact immutable container matches reviewed compiled files.
+- [x] Existing-context ARM validation and effective image/revision-only what-if.
+- [x] Applicable policy and least-privilege existing role-scope verification.
+
+### Section 7: Validation Proof — failure explanations
+
+Commands completed: `npm test`, `npm run typecheck`, `npm run build`,
+`deploy/.venv/bin/python .azure/chat-errors-proof/release.py inspect` and
+`deploy/.venv/bin/python .azure/chat-errors-proof/release.py validate`. The latter
+executes actual `az deployment group validate` / `what-if` against the fresh
+snapshot template, plus exact live role and applicable-policy queries.
+123 chat tests, typecheck and production build pass. New regressions cover the
+observed validation rule, root/nested SDK codes, unrelated rules/statuses,
+classification of incomplete/budget/failed-tool/verification responses, exact
+full-prompt HTTP handling, safe logs and UI messages, no blind Retry, no leaked
+rejected values, no automatic retries and no failed-response continuation.
+Independent semantic challenge identified that unfinished tool statuses must not
+be described as tool failures; their mapping was corrected to AGENT_INCOMPLETE
+and covered by regressions. Raw errors stay private; unknown text-rule shapes
+fall back to the general tool error, never a successful answer. Initial
+workspace-review tooling was unavailable; the bounded inline semantic challenge
+does not claim a filesystem audit. A final independent semantic review APPROVED
+the corrected failure handling and bounded release, conditional on live acceptance.
+The image-only ACR Linux/AMD64 release for source
+`ceb4ca2929b91bea2915fe4399c54f0716b55ca629cf909c9cbd81ab2fa88967`
+uses immutable digest
+`sha256:3ff2aab42068c4a8209679dd287913b3df3c17bbae80f8ea36beca9c2a086101`.
+Restricted no-network/read-only/cap-drop verification matched all 11 local build
+files. Actual ARM validation and what-if passed with only
+properties.template.containers.0.image and properties.template.revisionSuffix
+as effective changes. Validation completed at 2026-10-27T21:16:42Z.
+Existing environment/registry/pull identity, exact
+project-scoped runtime roles and registry-scoped AcrPull remain unchanged;
+applicable policy assignments were empty. Sanitized validation, image and
+rollback evidence is in ignored `.azure/chat-errors-proof/`.
+The preparation guard was corrected once to normalize Azure's "Brazil South"
+display value; the isolated Docker checker was corrected once to retain the
+local Docker endpoint while isolating temporary registry authentication. No
+application change or cloud-write retry was needed for either harness issue.
+One image-only PATCH deployed revision
+`ca-redshift-chat-bs01--errors-ceb4ca2929`; read-only postverification confirms
+one Healthy active revision with 100% traffic, the exact reviewed template and
+unchanged configuration/identity/roles/official MCP. The initial verification
+observed an old-template transition immediately after PATCH; one corrected
+read-only verifier accepted only the exact old/new snapshots and confirmed the
+new ready revision. The PATCH was not repeated.
+
+Actual browser submission preserved all 2,947 characters of the supplied prompt.
+It displayed "Too many grouping fields.", the at-most-two-fields explanation and
+ANALYSIS_GROUP_LIMIT, with 19 turns remaining, no blind Retry and no unverified
+assistant answer. A fresh supported 2025 oil question returned HTTP 200 in
+31.245 seconds with exact 21157564.26 bbl, actual get_data_context/analyze_data
+evidence and continued=false. All 123 tests/typecheck/build pass.
+Explaining the rejected prompt does not execute its unsupported SQL,
+ratio/revenue/completeness checks. A different failure may have a different
+mapped code; unknown upstream causes remain explicitly unknown.
+
 ## Long-prompt input release — 2026-10-27
 
 Status: **Deployed; input behavior verified; supplied-prompt processing blocked.**

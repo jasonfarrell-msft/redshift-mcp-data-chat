@@ -126,8 +126,41 @@ test('HTTP rejects an unexecuted claimed total without leaking model text or pro
   const response = await f.send('Actual oil production in 2025?');
   assert.equal(response.status, 503);
   const raw = await response.text();
-  assert.equal(JSON.parse(raw).error.code, 'AGENT_UNAVAILABLE');
+  assert.equal(JSON.parse(raw).error.code, 'AGENT_INVALID_RESPONSE');
   assert.doesNotMatch(raw, /999999999|private-|toolNames|reply/);
+});
+
+test('the full data-quality prompt returns the actual grouping rejection, consumes one turn and logs only its safe code', async (t) => {
+  let calls = 0;
+  const f = await fixture(t, { agent: createAgent(config, async (payload) => {
+    calls++;
+    assert.equal(payload.request.previous_response_id, undefined);
+    if (calls === 1) {
+      assert.equal(payload.request.input, dataQualityPrompt);
+      throw Object.assign(new Error('1 validation error for analyze_data\nplan.group_by\n' +
+        ' List should have at most 2 items after validation, not 4 [type=too_long, input_value=SECRET]'), {
+        status: 400, code: 'tool_user_error', error: { code: 'tool_user_error' }, responseId: 'private-id',
+      });
+    }
+    return {
+      id: 'private-id', status: 'completed', incomplete_details: null, output: [],
+      output_text: '{"kind":"clarification","reason":"missing_period"}',
+    } as Awaited<ReturnType<ResponseCaller>>;
+  }) });
+  const first = await f.send(dataQualityPrompt);
+  assert.equal(first.status, 503);
+  const raw = await first.text();
+  const body = JSON.parse(raw);
+  assert.equal(body.error.code, 'ANALYSIS_GROUP_LIMIT');
+  assert.match(body.error.message, /at most two/);
+  assert.equal(body.turnsRemaining, 19);
+  assert.equal(calls, 1);
+  assert.deepEqual(f.logs, ['ANALYSIS_GROUP_LIMIT']);
+  assert.doesNotMatch(raw, /SECRET|private-id|input_value|tool_user_error|toolNames|"reply"/);
+  const next = await f.send('A smaller question', cookie(first));
+  assert.equal(next.status, 200);
+  assert.equal((await next.json()).continued, false);
+  assert.equal(calls, 2);
 });
 
 test('HTTP observed GA encoding preserves public shape and requires fresh same-cookie analysis', async (t) => {
@@ -164,7 +197,7 @@ test('HTTP observed GA encoding preserves public shape and requires fresh same-c
   const ungrounded = await f.send('Analyze again', token);
   assert.equal(ungrounded.status, 503);
   const raw = await ungrounded.text();
-  assert.equal(JSON.parse(raw).error.code, 'AGENT_UNAVAILABLE');
+  assert.equal(JSON.parse(raw).error.code, 'AGENT_INVALID_RESPONSE');
   assert.doesNotMatch(raw, /123\.45|synthetic-response|structuredResponse|reply|toolNames/);
 });
 

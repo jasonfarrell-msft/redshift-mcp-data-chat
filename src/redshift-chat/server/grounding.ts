@@ -17,7 +17,7 @@ function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function fail(): never { throw new AppError(503, 'AGENT_UNAVAILABLE'); }
+function fail(): never { throw new AppError(503, 'AGENT_INVALID_RESPONSE'); }
 
 function parseFoundryBusinessOutput(output: string): Record<string, unknown> {
   const start = output.search(/[^ \t\r\n]/);

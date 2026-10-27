@@ -100,6 +100,25 @@ test('safe error state announces failure, with explicit nonautomatic retry using
   assert.doesNotMatch(expired, /<button/);
 });
 
+test('classified failures show a specific heading and safe code, and rephrase-only failures have no blind retry', () => {
+  for (const [code, heading, retry] of [
+    ['ANALYSIS_GROUP_LIMIT', 'Too many grouping fields.', false],
+    ['AGENT_TOOL_REJECTED', 'The analytics tool could not complete this request.', false],
+    ['AGENT_TOOL_LIMIT', 'This request exceeded the tool-call budget.', false],
+    ['AGENT_OUTPUT_LIMIT', 'The model reached its output limit.', false],
+    ['AGENT_INVALID_RESPONSE', 'The answer could not be verified.', false],
+    ['AGENT_INCOMPLETE', 'The agent did not finish its response.', true],
+    ['AGENT_RATE_LIMITED', 'Foundry is temporarily limiting requests.', true],
+  ] as const) {
+    const html = renderToStaticMarkup(<ErrorNotice error={new ApiError(code)} canRetry onRetry={() => {}} />);
+    assert.ok(html.includes(heading));
+    assert.ok(html.includes(`Error code: ${code}`));
+    assert.match(html, /role="alert"/);
+    assert.equal(html.includes('<button'), retry);
+    assert.doesNotMatch(html, /We couldn’t complete that request/);
+  }
+});
+
 test('keyboard Enter submits, Shift+Enter inserts a line, and IME composition never submits', () => {
   assert.equal(shouldSend({ key: 'Enter', shiftKey: false, nativeEvent: {} }), true);
   assert.equal(shouldSend({ key: 'Enter', shiftKey: true, nativeEvent: {} }), false);
@@ -169,4 +188,23 @@ test('client network/invalid JSON/unrecognized error states are safe, never auto
   await assert.rejects(() => request('/api/chat', { message: 'hello' }), /Could not reach the app/);
   fetchMock.mock.mockImplementation(async () => Response.json({ error: { code: 'SECRET' } }, { status: 500 }) as never);
   await assert.rejects(() => request('/api/chat', { message: 'hello' }), /Could not reach the app/);
+});
+
+test('client preserves reason-specific codes but never trusts provider or server error prose', async (t) => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => new Response());
+  for (const code of [
+    'ANALYSIS_GROUP_LIMIT', 'AGENT_TOOL_REJECTED', 'AGENT_TOOL_LIMIT', 'AGENT_OUTPUT_LIMIT',
+    'AGENT_INCOMPLETE', 'AGENT_INVALID_RESPONSE', 'AGENT_RATE_LIMITED',
+  ] as const) {
+    fetchMock.mock.mockImplementation(async () => Response.json({
+      error: { code, message: 'SECRET raw provider body' }, turnsRemaining: 19,
+    }, { status: 503 }));
+    await assert.rejects(() => request('/api/chat', { message: 'hello' }), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.code, code);
+      assert.equal(error.turnsRemaining, 19);
+      assert.doesNotMatch(error.message, /SECRET|raw provider/);
+      return true;
+    });
+  }
 });
