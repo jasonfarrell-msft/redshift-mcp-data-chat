@@ -14,6 +14,7 @@ export default function App() {
   const [turns, setTurns] = useState<number>(LIMITS.turns);
   const [error, setError] = useState<ApiError | null>(null);
   const [lastMessage, setLastMessage] = useState('');
+  const [requiresNewChat, setRequiresNewChat] = useState(false);
   const [health, setHealth] = useState<HealthState>({ status: 'checking', connected: null, checkedAt: null });
   const [refreshing, setRefreshing] = useState(false);
   const [healthError, setHealthError] = useState('');
@@ -24,7 +25,7 @@ export default function App() {
   const healthLocked = useRef(false);
   const mounted = useRef(true);
   const lifetime = useRef(new AbortController());
-  const mustReset = turns <= 0 || (!!error && newChainCodes.includes(error.code));
+  const mustReset = turns <= 0 || requiresNewChat;
   const inputTooLong = draft.length > LIMITS.inputCharacters;
 
   async function refreshHealth() {
@@ -90,6 +91,10 @@ export default function App() {
       if (mounted.current) {
         const safe = caught instanceof ApiError ? caught : new ApiError('NETWORK');
         setError(safe);
+        if (newChainCodes.includes(safe.code)) {
+          setRequiresNewChat(true);
+          setDraft(message);
+        }
         if (safe.turnsRemaining !== undefined) setTurns(safe.turnsRemaining);
       }
     } finally {
@@ -98,15 +103,19 @@ export default function App() {
     }
   }
 
-  async function reset() {
+  async function reset(preserveQuestion = false) {
     if (locked.current) return;
     locked.current = true;
     setResetting(true);
     try {
       await request('/api/session/reset', {}, lifetime.current.signal);
       if (mounted.current) {
-        setMessages([]); setDraft(''); setError(null); setTurns(LIMITS.turns); setLastMessage('');
-        setAnnouncement('New conversation started. This does not delete provider-side responses.');
+        setMessages([]);
+        setDraft(preserveQuestion ? draft || lastMessage : '');
+        setError(null); setTurns(LIMITS.turns); setLastMessage(''); setRequiresNewChat(false);
+        setAnnouncement(preserveQuestion
+          ? 'New conversation started. Your question is kept below; press Send when ready. Earlier context is not restored and provider-side responses are not deleted.'
+          : 'New conversation started. This does not delete provider-side responses.');
       }
     } catch (caught) {
       if (mounted.current) setError(caught instanceof ApiError ? caught : new ApiError('NETWORK'));
@@ -152,7 +161,9 @@ export default function App() {
           {messages.map((message) => <MessageBubble key={message.id} message={message} />)}
           {busy && <div className="thinking" role="status"><span className="thinking-dot" />The agent is checking its tools and preparing an answer…</div>}
         </div>
-        {error && <ErrorNotice error={error} canRetry={!mustReset && !busy && !resetting && !!lastMessage} onRetry={() => void send(lastMessage, true)} />}
+        {error && <ErrorNotice error={error} canRetry={!mustReset && !busy && !resetting && !!lastMessage}
+          onRetry={() => void send(lastMessage, true)}
+          onNewChat={mustReset && !busy && !resetting ? () => void reset(true) : undefined} />}
         {mustReset && <p className="reset-prompt">Use <strong>New chat</strong> to start a fresh conversation.</p>}
         <div ref={endRef} />
       </section>

@@ -1,5 +1,82 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Health refresh and explicit session recovery — 2026-10-27
+
+Status: **Deployed; browser health, explicit recovery and manual MCP answer verified**.
+Recipe: existing AZCLI / exact-snapshot image-only release to the same approved
+chat app, subscription, resource group and Brazil South environment.
+Root causes: health.check started a fresh probe but immediately returned stale
+cached state, with no browser polling to deliver the eventual result; recent
+chat deployments cleared the in-memory session map while browser cookies survived.
+The current revision has zero container restarts and 100% traffic. Actual stale
+cookie -> explicit reset -> fresh oil -> same-cookie gas continuation succeeded.
+There is no evidence that New chat itself is failing or that health age expires
+chat sessions. Server-side 30-minute/20-attempt limits remain unchanged.
+
+Fix health refresh to await the single in-flight bounded probe, including
+concurrent callers, while retaining timeout/cleanup quarantine and no AI health
+calls. Replace misleading "Last check expired" wording with an age notice.
+For explicit chat recovery, provide an inline New chat action, retain the failed
+question in the composer, keep reset-required state across reset failures, and
+never automatically reset or resend to Foundry. No persistent session store,
+new resource, identity, role, scale, model, agent or MCP change.
+
+Build/review/test the changes, then use an immutable chat image and the existing
+snapshot/lock/ARM-what-if release process. Existing chats reset once on rollout.
+Verify expired-cache manual health refresh through the real browser and explicit
+stale-cookie recovery with the question retained and no automatic provider call.
+
+### Section 7: Validation Proof — health and sessions
+
+126 tests, typecheck and production build pass; independent Devil's Advocate
+semantic review APPROVED the bounded refresh and explicit recovery, conditional
+on real browser acceptance. Timeout/cleanup quarantine and late-success
+regressions remain covered. This is not a persistent-session architecture change.
+
+All validation checks pass — HEALTH/SESSION scope:
+- [x] Local regressions, types/build and independent semantic review.
+- [x] Core validation: CLI/auth/context and actual snapshot-based ARM validate/
+  what-if passed; only image and revisionSuffix can change. No historical
+  Bicep/resource-creation templates are applied.
+- [x] Docker build: allowlisted ACR Linux/AMD64 source built successfully;
+  isolated read-only/no-network image inspection matches all 11 local dist files.
+- [x] Azure Policy: no applicable assignments at the exact existing target.
+- [x] Static role verification: release contains no role assignment resources;
+  existing Foundry Agent Consumer/Cognitive Services User project scopes and
+  AcrPull registry scope are unchanged. Existing MI code paths are unchanged.
+- [x] Live exact role/context fingerprints match the previously approved baseline.
+
+Source fingerprint:
+`523e60f2c2a8eb367d43f19967ecf67d4277f2ca4abe64b221db54af54fec81b`.
+Use the existing reviewed image-only runner through
+`.azure/chat-health-session-proof/release.py`; no legacy creation templates.
+Immutable image:
+`acrredshiftbs01bb4b2781.azurecr.io/redshift-chat@sha256:7a215a2399d9381df5133914e6993975d0d6f3abe43fdda9269d74bf6bdd9964`.
+ARM and image proof: `.azure/chat-health-session-proof/{arm-validate,arm-what-if,validation-proof,image-proof}.json`
+(ignored operational evidence). Rollback image is the previously active
+`sha256:3ff2aab42068c4a8209679dd287913b3df3c17bbae80f8ea36beca9c2a086101`.
+
+Rollout: one submitted PATCH, then a transient ARM revisions GET503. A single
+read-only verify (no repeated PATCH) confirmed exactly one active Healthy
+revision `ca-redshift-chat-bs01--errors-523e60f2c2` at 100% traffic, with all
+non-image settings, roles and official MCP fingerprints unchanged.
+
+Actual browser acceptance loaded `index-DbYu2RWE.js`. The existing browser
+cookie returned 409 SESSION_EXPIRED; the failed question remained visible and
+Send stayed blocked. A browser-only simulated reset429 retained that latch,
+question and explicit recovery action. The next actual reset returned200,
+cleared the old view, kept the question and enabled manual Send without another
+chat POST or assistant message. This does not claim sessions survive deployments.
+After the displayed healthy result aged past30s, one real Check again showed
+Checking until a fresh healthy/connected=true response in5.463s, completed at
+2026-10-27T21:38:25.032Z; no stale response or second poll was needed.
+Manual Send after that real recovery and health refresh returned HTTP200 in
+31.350s, one grounded assistant answer matching synthetic 2025 oil total
+21157564.26 bbl, no error, and19 turns remaining. No automatic resend occurred.
+Safe acceptance flags and timings, without cookies/provider payloads/answers,
+are retained in `.azure/chat-health-session-proof/browser-acceptance.json`.
+Final acceptance timestamp: 2026-10-27T21:39:37Z.
+
 ## Explain agent and MCP failures — 2026-10-27
 
 Status: **Deployed; specific failure explanation and supported MCP analytics verified**.

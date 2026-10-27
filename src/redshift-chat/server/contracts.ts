@@ -43,7 +43,7 @@ export const ERRORS = {
   ORIGIN_REJECTED: 'This request must come from this site. Reload and try again.',
   RATE_LIMITED: 'Too many requests. Wait a minute before trying again.',
   CAPACITY: 'The public demo is busy. Please try again later.',
-  SESSION_EXPIRED: 'This conversation expired or the server restarted. Start a new chat.',
+  SESSION_EXPIRED: 'This conversation expired after 30 minutes or was lost when the app restarted or was updated. Refreshing the page does not replace its cookie. Start a new chat; earlier context cannot be restored.',
   SESSION_BUSY: 'An answer is already being prepared for this conversation.',
   TURN_LIMIT: 'This conversation reached its 20-turn limit. Start a new chat.',
   CHAT_TIMEOUT: 'The answer timed out. Start a new chat; the provider may still retain this attempt.',

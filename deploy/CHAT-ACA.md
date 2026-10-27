@@ -2,7 +2,25 @@
 
 ## Current deployment and legacy retirement — 2026-10-27
 
-Current chat revision: `ca-redshift-chat-bs01--errors-ceb4ca2929`.
+Current chat revision: `ca-redshift-chat-bs01--errors-523e60f2c2`.
+Manual health refresh after the 30-second cache expiry now waits for the fresh
+single-flight probe instead of immediately returning the old stale result.
+Actual browser acceptance observed Checking, then healthy/connected=true after
+one 5.463-second request with a new completion timestamp. "Not recently checked"
+means only that the displayed health result is older than 30 seconds; it does not
+expire the chat.
+
+Chat sessions still live in memory and expire after 30 minutes or process loss.
+Deployments invalidate server-side sessions while old browser cookies remain.
+Unknown cookies are still rejected, never silently replaced. The new explicit
+inline Start new chat action keeps the failed question, replaces the cookie,
+clears unavailable old context and requires manual Send. Actual old-cookie
+409 and real reset200 acceptance passed, including question retention and no
+automatic chat request. A browser-only simulated reset429 confirmed the
+reset-required latch survives a failed reset; that simulation is not a claim
+about live throttling. Subsequent manual Send returned actual HTTP200 in31.350s
+with a grounded 2025 oil answer matching 21157564.26 bbl and19 turns remaining.
+
 The chat no longer supplies an output-token ceiling or rejects completed answers
 solely for exceeding 16,000 characters; model/service output limits apply.
 Timeouts, concurrency limits and strict fresh MCP grounding remain unchanged.

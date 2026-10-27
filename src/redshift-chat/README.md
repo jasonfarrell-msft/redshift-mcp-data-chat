@@ -386,7 +386,10 @@ start a new chain. Reset is explicit recovery and does not delete Foundry data.
   cache, MCP session termination and transport cleanup. Expired results are
   explicitly stale; a hanging cancelled probe cannot start an overlapping one.
   UI marks a displayed success stale at 30 seconds and offers manual refresh;
-  it does not poll or spend tokens for health.
+  it does not poll or spend tokens for health. A manual refresh after cache
+  expiry waits for the fresh bounded probe instead of immediately returning the
+  old stale result; concurrent requests share that probe. "Not recently checked"
+  is an age notice, not a disconnected database or an expired chat session.
 - 256 KiB JSON body limit, 10-second body/headers deadlines, fixed sanitized API
   error codes; prompts, cookies, tokens, provider bodies and answers are not logged.
 
@@ -410,6 +413,14 @@ financial cap**. Restart resets state. New cookies/IPs can bypass conversation
 budgets. GlobalStandard inference and remote MCP data may cross regions.
 Foundry Responses are explicitly stored for continuation; verify actual retention
 policy and disclose it before release. New chat/expiry does not delete them.
+
+Sessions exist only in the current process. Deployments/restarts invalidate
+server-side sessions even while browser cookies survive; refreshing a page does
+not replace an unknown cookie. Expiry recovery is explicit: the inline
+"Start new chat" action replaces the cookie, clears unavailable prior context,
+and keeps the failed question in the composer for manual submission. It never
+automatically resends or spends another model turn. A failed reset keeps the
+reset-required state; it cannot re-enable sending on the stale chain.
 
 ## Validation evidence and limitations
 

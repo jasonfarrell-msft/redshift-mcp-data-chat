@@ -15,13 +15,9 @@ export class HealthMonitor {
 
   async check(): Promise<HealthState> {
     if (this.cached && this.now() - this.cachedAt < this.cacheMs) return this.cached;
-    if (this.inFlight) return {
-      status: 'checking', connected: null, checkedAt: this.cached?.checkedAt ?? null,
-    };
-    const previous = this.cached;
+    if (this.inFlight) return this.inFlight;
     const flight = this.run();
     this.inFlight = flight;
-    if (previous) return { status: 'stale', connected: null, checkedAt: previous.checkedAt };
     return flight;
   }
 

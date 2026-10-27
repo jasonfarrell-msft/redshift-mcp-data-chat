@@ -33,7 +33,7 @@ export function ConnectionStatus({ health, refreshing, onRefresh }: {
 }) {
   const labels: Record<HealthState['status'], string> = {
     healthy: 'Redshift connected', checking: 'Checking Redshift…',
-    stale: 'Last check expired', unavailable: 'Redshift unavailable',
+    stale: 'Not recently checked', unavailable: 'Redshift unavailable',
   };
   return <section className="connection" aria-label="Redshift connection health">
     <div className={`connection-label ${health.status}`} role="status">
@@ -45,13 +45,15 @@ export function ConnectionStatus({ health, refreshing, onRefresh }: {
         {refreshing ? 'Checking…' : 'Check again'}
       </button>
     </div>
+    {health.status === 'stale' && <small>The last result is over 30 seconds old. Check again for a current result; this does not expire your chat.</small>}
   </section>;
 }
 
-export function ErrorNotice({ error, canRetry, onRetry }: {
-  error: ApiError; canRetry: boolean; onRetry: () => void;
+export function ErrorNotice({ error, canRetry, onRetry, onNewChat }: {
+  error: ApiError; canRetry: boolean; onRetry: () => void; onNewChat?: () => void;
 }) {
   const titles: Partial<Record<ApiError['code'], string>> = {
+    SESSION_EXPIRED: 'This chat session is no longer available.',
     ANALYSIS_GROUP_LIMIT: 'Too many grouping fields.',
     AGENT_TOOL_REJECTED: 'The analytics tool could not complete this request.',
     AGENT_TOOL_LIMIT: 'This request exceeded the tool-call budget.',
@@ -66,6 +68,8 @@ export function ErrorNotice({ error, canRetry, onRetry }: {
   ].includes(error.code);
   return <div className="error-notice" role="alert">
     <div><strong>{titles[error.code] ?? 'We couldn’t complete that request.'}</strong><p>{error.message}</p><small>Error code: {error.code}</small></div>
-    {canRetry && !needsRephrasing && <button type="button" onClick={onRetry}>Retry <span className="sr-only">(uses another turn)</span></button>}
+    {onNewChat
+      ? <button type="button" onClick={onNewChat}>Start new chat <span className="sr-only">(keeps your question; does not send it)</span></button>
+      : canRetry && !needsRephrasing && <button type="button" onClick={onRetry}>Retry <span className="sr-only">(uses another turn)</span></button>}
   </div>;
 }

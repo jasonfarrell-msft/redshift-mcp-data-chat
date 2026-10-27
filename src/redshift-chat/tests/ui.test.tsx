@@ -78,7 +78,7 @@ test('assistant replies display the Redshift Analytics speaker label, not the ol
 test('all health states are explicit; stale/unavailable never claim connected', () => {
   for (const [status, label] of [
     ['healthy', 'Redshift connected'], ['checking', 'Checking Redshift'],
-    ['stale', 'Last check expired'], ['unavailable', 'Redshift unavailable'],
+    ['stale', 'Not recently checked'], ['unavailable', 'Redshift unavailable'],
   ] as const) {
     const html = renderToStaticMarkup(<ConnectionStatus health={{
       status, connected: status === 'healthy', checkedAt: '2026-10-26T17:00:00Z',
@@ -89,6 +89,25 @@ test('all health states are explicit; stale/unavailable never claim connected', 
   }
   assert.equal(validHealth({ status: 'healthy', connected: false, checkedAt: null }), false);
   assert.equal(validHealth({ status: 'unknown', connected: true, checkedAt: null }), false);
+});
+
+test('health age is explained separately from chat session expiry', () => {
+  const html = renderToStaticMarkup(<ConnectionStatus health={{
+    status: 'stale', connected: null, checkedAt: '2026-10-27T21:29:09Z',
+  }} refreshing={false} onRefresh={() => {}} />);
+  assert.match(html, /over 30 seconds old/);
+  assert.match(html, /does not expire your chat/);
+  assert.doesNotMatch(html, /Last check expired|Redshift unavailable|Redshift connected/);
+});
+
+test('session recovery has an explicit new-chat action instead of retrying an expired chain', () => {
+  const html = renderToStaticMarkup(<ErrorNotice error={new ApiError('SESSION_EXPIRED')}
+    canRetry onRetry={() => {}} onNewChat={() => {}} />);
+  assert.match(html, /This chat session is no longer available/);
+  assert.match(html, /app restarted or was updated/);
+  assert.match(html, /Start new chat/);
+  assert.match(html, /keeps your question; does not send it/);
+  assert.doesNotMatch(html, />Retry /);
 });
 
 test('safe error state announces failure, with explicit nonautomatic retry using another turn', () => {

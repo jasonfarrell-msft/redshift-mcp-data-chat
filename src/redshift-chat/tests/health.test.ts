@@ -7,7 +7,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { HealthMonitor } from '../server/health.js';
 import { createProbe } from '../server/providers.js';
 
-test('health success is cached for 30 seconds; expiry is stale, not a current success', async () => {
+test('health success is cached for 30 seconds; one refresh after expiry returns the new result', async () => {
   let time = 1_000_000;
   let calls = 0;
   const monitor = new HealthMonitor(async () => { calls++; return true; }, () => time);
@@ -17,17 +17,16 @@ test('health success is cached for 30 seconds; expiry is stale, not a current su
   assert.deepEqual(await monitor.check(), first);
   assert.equal(calls, 1);
   time++;
-  const stale = await monitor.check();
-  assert.equal(stale.status, 'stale');
-  assert.equal(stale.connected, null);
-  assert.equal(stale.checkedAt, first.checkedAt);
-  await sleep(1);
-  assert.equal((await monitor.check()).status, 'healthy');
+  const refreshed = await monitor.check();
+  assert.equal(refreshed.status, 'healthy');
+  assert.equal(refreshed.connected, true);
+  assert.equal(refreshed.checkedAt, new Date(time).toISOString());
+  assert.notEqual(refreshed.checkedAt, first.checkedAt);
   assert.equal(calls, 2);
   monitor.close();
 });
 
-test('single-flight prevents overlapping probes and exposes checking', async () => {
+test('concurrent callers await the same bounded probe without a second request or poll', async () => {
   let resolve!: (value: boolean) => void;
   let calls = 0;
   const monitor = new HealthMonitor(async () => {
@@ -36,10 +35,12 @@ test('single-flight prevents overlapping probes and exposes checking', async () 
   });
   const first = monitor.check();
   await sleep(1);
-  assert.deepEqual(await monitor.check(), { status: 'checking', connected: null, checkedAt: null });
+  const concurrent = monitor.check();
   assert.equal(calls, 1);
   resolve(true);
-  assert.equal((await first).status, 'healthy');
+  const [a, b] = await Promise.all([first, concurrent]);
+  assert.equal(a.status, 'healthy');
+  assert.deepEqual(b, a);
   monitor.close();
 });
 
@@ -58,14 +59,39 @@ test('deadline aborts probe; hanging cleanup holds the lock past cache expiry an
   assert.equal(signal?.aborted, true);
   assert.deepEqual(await monitor.check(), result);
   time += 31;
-  assert.equal((await monitor.check()).status, 'checking');
+  assert.deepEqual(await monitor.check(), result);
   assert.equal(calls, 1);
   resolve(true);
   await sleep(1);
-  assert.equal((await monitor.check()).status, 'stale');
+  const next = monitor.check();
+  await sleep(1);
   assert.equal(calls, 2);
-  monitor.close();
   resolve(false);
+  assert.equal((await next).status, 'unavailable');
+  monitor.close();
+});
+
+test('an expired cached success waits for a new failed probe and timestamps completion, not the old success', async () => {
+  let time = 1_000_000;
+  let calls = 0;
+  let resolve!: (value: boolean) => void;
+  const monitor = new HealthMonitor(async () => ++calls === 1 ? true
+    : new Promise<boolean>((done) => { resolve = done; }), () => time);
+  const old = await monitor.check();
+  time += 30_001;
+  let returned = false;
+  const fresh = monitor.check().then((value) => { returned = true; return value; });
+  const concurrent = monitor.check();
+  await sleep(1);
+  assert.equal(returned, false);
+  assert.equal(calls, 2);
+  time += 40_000;
+  resolve(false);
+  const result = await fresh;
+  assert.deepEqual(result, { status: 'unavailable', connected: false, checkedAt: new Date(time).toISOString() });
+  assert.notEqual(result.checkedAt, old.checkedAt);
+  assert.deepEqual(await concurrent, result);
+  monitor.close();
 });
 
 test('downstream failure reports unavailable, never a fallback healthy result', async () => {
