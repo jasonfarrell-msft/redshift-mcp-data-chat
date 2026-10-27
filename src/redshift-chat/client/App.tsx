@@ -25,6 +25,7 @@ export default function App() {
   const mounted = useRef(true);
   const lifetime = useRef(new AbortController());
   const mustReset = turns <= 0 || (!!error && newChainCodes.includes(error.code));
+  const inputTooLong = draft.length > LIMITS.inputCharacters;
 
   async function refreshHealth() {
     if (healthLocked.current) return;
@@ -69,7 +70,7 @@ export default function App() {
 
   async function send(text: string, retry = false) {
     const message = text.trim();
-    if (locked.current || !message || message.length > LIMITS.inputCharacters || mustReset) return;
+    if (locked.current || !message || text.length > LIMITS.inputCharacters || mustReset) return;
     locked.current = true;
     setBusy(true);
     setError(null);
@@ -158,14 +159,18 @@ export default function App() {
       <div className="composer-wrap">
         <form className="composer" onSubmit={submit}>
           <label className="sr-only" htmlFor="message">Ask about production, wells or prices</label>
-          <textarea id="message" ref={inputRef} value={draft} rows={2} maxLength={LIMITS.inputCharacters}
+          <textarea id="message" ref={inputRef} value={draft} rows={2}
             placeholder="Ask about production, wells or prices…"
-            disabled={busy || resetting || mustReset} aria-describedby="composer-help"
+            disabled={busy || resetting || mustReset} aria-invalid={inputTooLong}
+            aria-describedby={inputTooLong ? 'composer-help composer-error' : 'composer-help'}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (shouldSend(event)) { event.preventDefault(); void send(draft); } }} />
-          <div className="composer-bottom"><span aria-hidden="true">{draft.length.toLocaleString()} / 2,000</span>
-            <button className="send-button" type="submit" disabled={busy || resetting || mustReset || !draft.trim()}>{busy ? 'Working…' : 'Send'} <span aria-hidden="true">↑</span></button></div>
+          <div className="composer-bottom"><span aria-hidden="true">{draft.length.toLocaleString()} / {LIMITS.inputCharacters.toLocaleString()}</span>
+            <button className="send-button" type="submit" disabled={busy || resetting || mustReset || inputTooLong || !draft.trim()}>{busy ? 'Working…' : 'Send'} <span aria-hidden="true">↑</span></button></div>
         </form>
+        {inputTooLong && <p className="health-error" id="composer-error" role="alert">
+          Your full prompt is preserved, but exceeds {LIMITS.inputCharacters.toLocaleString()} characters. Shorten it before sending.
+        </p>}
         <div className="composer-help" id="composer-help"><span>Enter to send · Shift + Enter for a new line</span><span>{turns} / 20 turns remaining</span></div>
         <p className="limits-note">30-minute chains · 5 requests/minute, shared with health and reset · retries use a turn. In-memory POC limits reset on restart and are not a spending cap. Verify important answers.</p>
       </div>

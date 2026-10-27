@@ -71,7 +71,7 @@ function readJson(req: IncomingMessage): Promise<unknown> {
     const fail = (error: AppError) => { cleanup(); req.resume(); reject(error); };
     const onData = (chunk: Buffer) => {
       size += chunk.length;
-      if (size > 16_384) { fail(new AppError(413, 'BODY_TOO_LARGE')); return; }
+      if (size > LIMITS.requestBytes) { fail(new AppError(413, 'BODY_TOO_LARGE')); return; }
       chunks.push(chunk);
     };
     const onError = () => fail(new AppError(400, 'BAD_REQUEST'));

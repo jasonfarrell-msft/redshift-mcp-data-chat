@@ -110,7 +110,7 @@ test('keyboard Enter submits, Shift+Enter inserts a line, and IME composition ne
 test('initial app includes accessible composer, role log, privacy/retention and plan safety notices', () => {
   const html = renderToStaticMarkup(<App />);
   for (const text of [
-    'role="log"', 'aria-live="polite"', 'for="message"', 'maxLength="2000"', 'New chat',
+    'role="log"', 'aria-live="polite"', 'for="message"', '32,000', 'New chat',
     'PUBLIC POC', 'Synthetic-data demo.', 'Don’t share sensitive information.',
     'arbitrary SQL is never accepted.',
     'Chats are processed and may be retained in Foundry', 'does not delete provider-side responses',
@@ -119,6 +119,7 @@ test('initial app includes accessible composer, role log, privacy/retention and 
     'In-memory POC limits reset on restart',
   ]) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /https:\/\/.*\.services\.ai\.azure/);
+  assert.doesNotMatch(html, /maxlength=/i);
 });
 
 test('initial UI is client-neutral and asks business questions against real data', () => {

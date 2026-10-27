@@ -1,5 +1,6 @@
 export const LIMITS = Object.freeze({
-  inputCharacters: 2000,
+  inputCharacters: 32_000,
+  requestBytes: 256 * 1024,
   toolCalls: 4,
   turns: 20,
   concurrentChats: 2,
@@ -37,7 +38,7 @@ export type Agent = (request: AgentRequest) => Promise<AgentReply>;
 export type Probe = (signal: AbortSignal) => Promise<boolean>;
 
 export const ERRORS = {
-  BAD_REQUEST: 'Send a JSON object containing only a message of 1–2,000 characters.',
+  BAD_REQUEST: 'Send a JSON object containing only a message of 1–32,000 characters.',
   BODY_TOO_LARGE: 'The request is too large.',
   ORIGIN_REJECTED: 'This request must come from this site. Reload and try again.',
   RATE_LIMITED: 'Too many requests. Wait a minute before trying again.',

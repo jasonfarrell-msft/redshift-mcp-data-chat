@@ -364,11 +364,14 @@ start a new chain. Reset is explicit recovery and does not delete Foundry data.
   cancellation and returns a fixed timeout. Its slot stays occupied until actual
   underlying work/cleanup settles; a late result cannot advance the chain.
   An uncertain timed-out chain requires New chat, not silent continuation.
-- 2,000 UTF-16 input code units, four tool calls, 230-second chat deadline, no
+- 32,000 UTF-16 input code units with a 256 KiB JSON request-body budget, four
+  tool calls, 230-second chat deadline, no
   automatic retries. There is no application output-token or completed-answer
   character cap; the selected model/service imposes its own token ceiling.
   Empty output fails safely; incomplete model responses still fail closed rather
   than returning partial JSON or an apparently complete answer.
+  The composer preserves pasted text instead of silently truncating it. Over-limit
+  prompts show an accessible warning and cannot be submitted until shortened.
 - Maximum 1,000 session entries / 10,000 rate entries; expired inactive entries
   are evicted, capacity rejects new entries rather than resetting protections.
 - Five requests/minute per verified **socket IP**, shared by **all** `/api/*`

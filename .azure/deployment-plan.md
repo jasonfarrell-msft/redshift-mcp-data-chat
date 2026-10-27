@@ -1,5 +1,74 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Long-prompt input release — 2026-10-27
+
+Status: **Deployed; input behavior verified; supplied-prompt processing blocked.**
+The user-provided data-quality prompt exceeds the old 2,000-character composer
+limit. Increase the shared input budget to 32,000 UTF-16 code units and the JSON
+body budget to 256 KiB, which accommodates worst-case JSON escaping at that
+character boundary. Remove HTML maxlength truncation; preserve the full draft,
+show an accessible over-limit error and disable Send while oversized.
+Keep matching server-side validation, request deadline, rate/concurrency limits,
+no application answer-token cap and all MCP grounding/read-only rules unchanged.
+Pasted SQL is context, not permission to execute arbitrary SQL or add unsupported
+ratio/revenue/completeness analytics.
+
+Scope: one immutable chat image, image/revision-only update to the existing
+`ca-redshift-chat-bs01` in Brazil South and approved subscription. No new resource,
+permission, scale, model, agent or MCP change. Preserve the current native-limit
+image for rollback. Existing chats reset on rollout. Validate exact-prompt
+delivery, exact character/byte boundaries and real browser paste/overflow states.
+
+User approved deployment to the same web app, including in-memory chat reset.
+All 111 chat tests, typecheck and production build passed. Independent Devil's
+Advocate semantic review approved the boundary arithmetic, consistency, draft
+preservation and retained safety/cost controls.
+
+All validation checks pass — LONG-PROMPT INPUT scope:
+- [x] Snapshot-preserving ARM validation/what-if permits only image/revision.
+- [x] Immutable Linux/AMD64 image matches reviewed compiled backend/frontend.
+- [x] Existing resource context, applicable policies and exact roles preserved.
+
+### Section 7: Validation Proof — long-prompt input
+
+At 20:52 UTC, ARM validate and what-if succeeded with exactly the chat image and
+revision suffix as effective modifications. Context, policy and exact existing
+role-scope checks passed; no new policy assignment or role resource is present.
+All 111 chat tests, typecheck and production build passed. The full supplied
+prompt fixture contains 2,947 characters and its final Y/N question reaches the
+agent intact. Boundary tests cover 32,000 characters, worst-case JSON escaping,
+32,001-character rejection and the separate JSON byte guard.
+
+ACR Linux/AMD64 build `cqb` succeeded for source fingerprint
+`849e6f254e37af569bb0e68b8212c6a3f80aff142d08792138a91df190e93bf0`.
+Exact image:
+`sha256:6c92af0f6bb01af29c8a88c99a0d0456eb6b5ff1212b88664aa3e4fd30da8579`.
+Network-disabled/read-only image verification matched all 11 built files and
+confirmed 32,000 input units, 262,144 request bytes and no output-token cap.
+Proof and nonsecret rollback baseline: `.azure/chat-long-prompt-proof/` (ignored).
+Expected revision: `ca-redshift-chat-bs01--prompt-849e6f254e`.
+
+The guarded image-only update completed at 20:54 UTC. One active Healthy revision
+serves all traffic; chat configuration/identity/environment and the MCP adapter
+configuration/identity/template are unchanged. The new frontend asset and public
+32,000-character configuration match the inspected image. Live roles are unchanged.
+
+Real browser verification preserved a 3,563-character paste exactly, including its
+final Y/N question, with Send enabled and no maxlength attribute. A 32,001-character
+draft remained intact, set aria-invalid, displayed the accessible warning and
+disabled Send. The prior draft was restored afterward.
+
+The full 2,947-character supplied fixture was submitted to the hosted endpoint
+without an input-length rejection, but received HTTP 503 / AGENT_UNAVAILABLE.
+Bounded direct-agent diagnosis identified upstream HTTP 400 / tool_user_error.
+This is a distinct upstream tool rejection, not remaining composer truncation;
+the specific rejected argument was not established. Do not describe the supplied
+prompt as end-to-end successful. Its
+raw SQL, ratio, completeness and revenue checks are not added by this input fix.
+No grounding check was relaxed and no automatic retry/fallback was added.
+An independent supported-question smoke check returned HTTP 200 with the exact
+2025 oil total and fresh get_data_context/analyze_data evidence in 26.494 seconds.
+
 ## Model-native answer limit release — 2026-10-27
 
 Status: **Deployed and verified.**

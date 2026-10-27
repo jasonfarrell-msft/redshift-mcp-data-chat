@@ -11,6 +11,7 @@ import { HealthMonitor } from '../server/health.js';
 import { createAgent, type ResponseCaller } from '../server/providers.js';
 import { RateLimiter, Sessions } from '../server/state.js';
 import { analysisValue, contextValue, foundryOutput } from './fixtures/foundry.js';
+import { dataQualityPrompt } from './fixtures/data-quality-prompt.js';
 
 const config: Config = {
   production: true, port: 8080, publicOrigin: 'https://chat.example',
@@ -210,7 +211,7 @@ test('CSRF, JSON-only, unexpected fields, input bounds and unknown routes fail c
   for (const body of [
     { message: 'hi', previous_response_id: 'foreign' }, { message: 'hi', model: 'other' },
     { message: 'hi', agent: 'other' }, { message: 'hi', mcpUrl: 'https://evil.invalid' },
-    { message: 'x'.repeat(2001) }, { message: ' ' }, { message: 42 }, [], null,
+    { message: 'x'.repeat(LIMITS.inputCharacters + 1) }, { message: ' ' }, { message: 42 }, [], null,
   ]) assert.equal((await f.post('/api/chat', body)).status, 400);
   assert.equal((await f.post('/api/chat', { message: 'hi' }, undefined, { Origin: 'https://evil.invalid' })).status, 403);
   const noOrigin = await fetch(`${f.base}/api/chat`, {
@@ -223,11 +224,32 @@ test('CSRF, JSON-only, unexpected fields, input bounds and unknown routes fail c
     method: 'POST', headers: { Origin: config.publicOrigin, 'Content-Type': 'application/json' }, body: '{',
   });
   assert.equal(malformed.status, 400);
-  assert.equal((await f.post('/api/chat', { message: 'x'.repeat(17_000) })).status, 413);
+  assert.equal((await f.post('/api/chat', { message: 'x'.repeat(LIMITS.requestBytes) })).status, 413);
   assert.equal((await fetch(`${f.base}/api/health?url=https://evil.invalid`)).status, 400);
   assert.equal((await f.post('/api/query', { sql: 'select' })).status, 404);
   assert.equal((await fetch(`${f.base}/api/config`, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
   assert.equal(f.calls.length, 0);
+});
+
+test('the full data-quality prompt reaches the agent without truncation', async (t) => {
+  const f = await fixture(t);
+  assert.ok(dataQualityPrompt.length > 2000 && dataQualityPrompt.length <= LIMITS.inputCharacters);
+  assert.equal((await f.send(dataQualityPrompt)).status, 200);
+  assert.equal(f.calls[0]!.message, dataQualityPrompt);
+  assert.ok(f.calls[0]!.message.endsWith('3. Run the monthly price/revenue check as well? (Y/N)'));
+});
+
+test('input character and JSON byte budgets agree at the exact boundary', async (t) => {
+  const f = await fixture(t);
+  for (const message of ['x'.repeat(LIMITS.inputCharacters), '\uD800'.repeat(LIMITS.inputCharacters)]) {
+    assert.ok(Buffer.byteLength(JSON.stringify({ message })) <= LIMITS.requestBytes);
+    assert.equal((await f.send(message)).status, 200);
+    assert.equal(f.calls.at(-1)!.message, message);
+  }
+  const tooLong = await f.send('x'.repeat(LIMITS.inputCharacters + 1));
+  assert.equal(tooLong.status, 400);
+  assert.match((await tooLong.json()).error.message, /32,000/);
+  assert.equal(f.calls.length, 2);
 });
 
 test('per-session lock is atomic, reset cannot race a provider call, and global concurrency is two', async (t) => {
