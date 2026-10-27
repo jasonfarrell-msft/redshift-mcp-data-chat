@@ -30,6 +30,16 @@ The implementation is local; analytics deployment and numeric live acceptance
 are pending independent implementation review.
 UI regression tests cover this copy and the document title/description.
 
+## Markdown replies
+
+Assistant replies render GitHub-flavored Markdown, including headings, tables,
+lists, emphasis, quotes, and inline/fenced code. Tables and code blocks scroll
+within the message on narrow screens. User messages remain literal text.
+Raw HTML is disabled; images render their alt text without fetching remote
+content. Only absolute HTTP(S) links are clickable, opening a separate tab with
+no opener or referrer. Markdown does not change the agent protocol, grounding,
+or MCP/database execution path.
+
 ## Run and validate
 
 Use Node 24 LTS and npm. From this directory:

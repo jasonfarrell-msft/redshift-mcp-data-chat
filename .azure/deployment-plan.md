@@ -1,5 +1,99 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Chat Markdown release — 2026-10-27
+
+Status: **Deployed and verified**,2026-10-27 19:29 UTC. User approved deployment to the existing web
+app, including the in-memory chat reset. The requested UI change is implemented
+locally. Assistant replies support GitHub-flavored Markdown; user messages remain
+literal text. Raw HTML is disabled, remote images are not loaded, and only absolute
+HTTP(S) links are clickable, with no opener/referrer. Tables and code blocks scroll
+within their messages. The Foundry JSON protocol and fresh MCP grounding are unchanged.
+
+Release scope: build one immutable Linux/AMD64 image from the existing chat
+Dockerfile and an allowlisted context, then update only the image and revision
+suffix of `ca-redshift-chat-bs01` in `rg-redshift-bs01`, Brazil South, subscription
+`bb4b2781-6739-4fa1-994e-4ad6ce55c59c`. Reuse the current ACR and managed identities.
+No new resources, permissions, model/agent changes, MCP changes, or scale changes.
+The existing public HTTPS POC exposure remains; this is not production hardening.
+
+Use the existing AZCLI/ARM recipe and current `2026-07-01` Container Apps API.
+Snapshot the actual live chat configuration/template/identity before validation;
+do not use the historical creation definition, which contains superseded agent
+and MCP settings. Validate/what-if the exact snapshot-preserving image-only
+template. Execution uses a release-specific `deploy.arm` image-only PATCH and
+the existing local operator lock, not `official_cutover.apply_prepared` (its
+historical image allowlist is intentionally unchanged). Immediately before PATCH,
+recheck the baseline under a local lock;
+this is not an atomic ETag/CAS guarantee. Preserve probes, environment values,
+agent3, current official MCP URL, resource limits, scale, identity and RBAC.
+
+Rollback retains the current `--official3600` revision and immutable chat image
+`sha256:7eff76f081d526ac3ae0870240b01b938edbf1c1f42647f2d3ddcdd7057a59df`.
+In-memory chat chains reset on image rollout, as with previous releases.
+Acceptance requires the exact new frontend assets, reachable HTTPS/health, and
+one fresh grounded answer through official MCP. Keep execution bounded to one
+initial attempt plus one targeted correction/retry per failed stage.
+
+### Section 7: Validation Proof — Markdown release
+
+Local checks: all107 chat tests passed, including assistant Markdown, user literal
+text, raw-HTML/image suppression, unsafe links, semantic/scrollable tables, and
+existing grounding/session protections. Typecheck and production build passed.
+Every existing dependency version/integrity remains unchanged; the lockfile uses
+canonical public npm tarball URLs. Goff independently APPROVED the rendering and
+preservation plan, with no blockers; the executor path is clarified above.
+At2026-10-27 19:22 UTC, immutable-image proof, ARM validation/what-if and static/live
+role-preservation checks passed. Hosted acceptance subsequently passed.
+Historical release proofs below do not validate this new image.
+
+Release source fingerprint:
+`103d6b00cc0ccb61fa46c5c1c5508a9c7eb1578f9c9ce90b68f7d15d36308b7e`.
+ACR Linux/AMD64 build `cq9` Succeeded, immutable digest
+`sha256:ca8503000043560fa6f15779e1fefbff82d6dcc5913446b238af4e61d9e217a3`.
+Network-disabled/read-only inspection of that exact image verified Node24.22.1,
+react-markdown10.1.0, remark-gfm4.0.1 and byte-for-byte hashes of all three
+frontend assets against the reviewed local build.
+
+Commands/results:
+- `npm test`:107 passed; `npm run typecheck` and `npm run build`:passed.
+- `az account show`, environment/registry/identity GETs:approved target unchanged.
+- `az provider show`:2026-07-01 remains the latest listed GA containerApps API.
+- `az deployment group validate` against
+  `.azure/chat-markdown-proof/validation.json`:passed.
+- `az deployment group what-if` against the same template:Succeeded. Only the
+  chat image and revisionSuffix have effective changes. FQDN and ephemeral
+  storage are provider NoEffect; all other resources are Ignore/NoChange.
+- `az role assignment list`:same two exact project-scoped Foundry roles and one
+  registry-scoped AcrPull role; the generated template contains no RBAC changes.
+- `az policy assignment list` at the resource-group scope:[].
+
+Proofs and rollback baseline are in `.azure/chat-markdown-proof/`; only this
+runbook is tracked. Exact release is `release.json`, expected revision
+`ca-redshift-chat-bs01--markdown-103d6b00cc`.
+
+The single guarded image-only PATCH completed successfully. One healthy active
+revision serves100% traffic; identity, configuration, environment, probes, scale,
+resource limits and live RBAC are unchanged. Actual hosted HTML/CSS/JavaScript
+hashes match the exact inspected image.
+
+The real browser submitted a fresh2025 oil question requesting a Markdown table.
+The deployed UI rendered semantic Product/Total/Units headers and Oil,
+21,157,564.26,bbl cells, with the observed-period/source/grain caveat preserved.
+Visual inspection passed. At a240px message width, the named keyboard-focusable
+table region scrolled internally (238px client width,270px content), without
+page overflow. No inline Markdown styles or embedded images were present.
+Direct MCP health was captured healthy/connected at19:28:58 UTC, using the
+existing single-flight/cache semantics rather than treating stale/checking as
+failure or caching a business answer.
+
+All validation checks pass — MARKDOWN RELEASE scope:
+- [x] Core validation: authenticated context, exact image-only ARM validation and
+  what-if. Existing ARM JSON is retained; Bicep compilation is not applicable.
+- [x] Docker Build: immutable Linux/AMD64 image, successful locked install/build,
+  exact frontend-asset verification.
+- [x] Azure Policy Validation and preservation of existing managed identities,
+  two project-scoped Foundry roles, registry-only AcrPull, HTTPS and scale.
+
 ## Official MCP performance improvements — 2026-10-27
 
 Status: **Deployed and verified**,2026-10-27 18:54 UTC. User approved both proposed

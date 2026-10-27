@@ -1,3 +1,5 @@
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { HealthState } from '../server/contracts.js';
 import type { ApiError } from './api.js';
 
@@ -8,7 +10,19 @@ export function MessageBubble({ message }: { message: Message }) {
     <div className="avatar" aria-hidden="true">{message.role === 'user' ? 'Y' : 'R'}</div>
     <div className="message-body">
       <span className="message-role">{message.role === 'user' ? 'You' : 'Redshift Analytics'}</span>
-      <p>{message.text}</p>
+      {message.role === 'assistant' ? <div className="markdown">
+        <Markdown remarkPlugins={[remarkGfm]} skipHtml components={{
+          a: ({ href, children }) => href && /^https?:\/\//i.test(href)
+            ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+            : <span>{children}</span>,
+          img: ({ alt }) => <span>{alt}</span>,
+          table: ({ children }) => <div className="markdown-table" role="region" aria-label="Answer table" tabIndex={0}>
+            <table>{children}</table>
+          </div>,
+          th: ({ children, style }) => <th data-align={style?.textAlign}>{children}</th>,
+          td: ({ children, style }) => <td data-align={style?.textAlign}>{children}</td>,
+        }}>{message.text}</Markdown>
+      </div> : <p>{message.text}</p>}
       {message.truncated && <small className="truncated">Answer reached its output limit. Ask a focused follow-up for more detail.</small>}
     </div>
   </article>;

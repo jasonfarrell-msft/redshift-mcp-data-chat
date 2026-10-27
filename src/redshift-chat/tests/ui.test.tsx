@@ -6,14 +6,64 @@ import App from '../client/App.js';
 import { ApiError, request, shouldSend, validHealth } from '../client/api.js';
 import { ConnectionStatus, ErrorNotice, MessageBubble } from '../client/components.js';
 
-test('assistant/user replies render escaped plain text, never HTML, Markdown, or clickable links', () => {
-  for (const role of ['user', 'assistant'] as const) {
-    const html = renderToStaticMarkup(<MessageBubble message={{
-      id: '1', role, text: '<script>alert("unsafe")</script>\n[click](javascript:alert(1))',
+test('user messages remain escaped literal text, including Markdown syntax', () => {
+  const html = renderToStaticMarkup(<MessageBubble message={{
+    id: '1', role: 'user', text: '<script>alert("unsafe")</script>\n**literal** [link](https://example.com)',
+  }} />);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /\*\*literal\*\*/);
+  assert.match(html, /You message/);
+  assert.doesNotMatch(html, /<script|<strong|href=/);
+});
+
+test('assistant Markdown supports headings, lists, emphasis, quotes and code without changing numbers', () => {
+  const html = renderToStaticMarkup(<MessageBubble message={{
+    id: '1', role: 'assistant', truncated: true,
+    text: '## Production\n\n**21,157,564.26 bbl** and *gas*.\n\n- Oil\n- Gas\n\n1. First\n2. Second\n\n> Read only\n\nUse `total`.\n\n```sql\nSELECT 1 < 2;\n```',
+  }} />);
+  for (const expected of [
+    '<h2>Production</h2>', '<strong>21,157,564.26 bbl</strong>', '<em>gas</em>',
+    '<ul>', '<li>Oil</li>', '<ol>', '<blockquote>', '<code>total</code>',
+    '<pre><code class="language-sql">SELECT 1 &lt; 2;',
+    'Assistant message', 'Answer reached its output limit.',
+  ]) assert.ok(html.includes(expected), expected);
+});
+
+test('Markdown tables retain semantic headers and safe alignment in a keyboard-scrollable region', () => {
+  const html = renderToStaticMarkup(<MessageBubble message={{
+    id: '1', role: 'assistant', text: '| Product | Total |\n| :--- | ---: |\n| Oil | 21157564.26 |',
+  }} />);
+  for (const expected of [
+    'class="markdown-table"', 'role="region"', 'aria-label="Answer table"', 'tabindex="0"',
+    '<table>', '<thead>', '<tbody>', '<th data-align="right">Total</th>',
+    '<td data-align="right">21157564.26</td>',
+  ]) assert.ok(html.includes(expected), expected);
+  assert.doesNotMatch(html, /style=/);
+});
+
+test('assistant Markdown strips raw HTML and never embeds remote images', () => {
+  const html = renderToStaticMarkup(<MessageBubble message={{
+    id: '1', role: 'assistant',
+    text: '<script>alert("unsafe")</script>\n\n<img src="https://example.com/track" onerror="alert(1)">\n\n<iframe src="https://example.com"></iframe>\n\n![Production chart](https://example.com/track.png)',
+  }} />);
+  assert.match(html, /Production chart/);
+  assert.doesNotMatch(html, /<script|<img|<iframe|onerror=|src=|rel="preload"/);
+});
+
+test('assistant links allow only absolute HTTP(S), open separately and do not send a referrer', () => {
+  const safe = renderToStaticMarkup(<MessageBubble message={{
+    id: '1', role: 'assistant', text: '[Source](https://example.com/report)',
+  }} />);
+  assert.match(safe, /href="https:\/\/example.com\/report" target="_blank" rel="noopener noreferrer"/);
+  for (const url of [
+    'javascript:alert%281%29', 'JaVaScRiPt:alert%281%29', 'data:text/html,unsafe',
+    'vbscript:unsafe', 'file:///etc/passwd', '//example.com/track', '/api/session',
+  ]) {
+    const unsafe = renderToStaticMarkup(<MessageBubble message={{
+      id: '1', role: 'assistant', text: `[Source](${url})`,
     }} />);
-    assert.match(html, /&lt;script&gt;/);
-    assert.doesNotMatch(html, /<script|href=|dangerouslySetInnerHTML/);
-    assert.match(html, role === 'user' ? /You message/ : /Assistant message/);
+    assert.match(unsafe, /Source/);
+    assert.doesNotMatch(unsafe, /href=|<a[ >]/, url);
   }
 });
 
