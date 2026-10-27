@@ -1,0 +1,4 @@
+azure-identity==1.26.0
+azure-keyvault-secrets==4.11.3
+mcp==1.30.0
+python-dotenv==1.2.4

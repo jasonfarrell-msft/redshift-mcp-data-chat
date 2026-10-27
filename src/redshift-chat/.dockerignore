@@ -1,0 +1,17 @@
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.server.json
+!vite.config.ts
+!server/
+!server/*.ts
+!client/
+!client/*.ts
+!client/*.tsx
+!client/*.css
+!client/*.html
+**/.env*
+**/*.log

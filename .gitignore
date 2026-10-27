@@ -1,0 +1,58 @@
+# Squad: ignore runtime state (logs, inbox, sessions)
+# Note: .squad/casting/* is identity and MUST be committed to main, not ignored
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+.squad/.scratch/
+.squad/.cache/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+# Python build, test, and local runtime files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.mypy_cache/
+.tox/
+
+# Never check runtime credentials into source
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.aws/
+.ssh/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# JavaScript dependencies, coverage, and machine-local runtimes
+node_modules/
+.runtime/
+node-compile-cache/
+coverage/
+
+# Local Azure state and diagnostic output; retain the deployment runbook
+.azure/*
+!.azure/deployment-plan.md
+
+# Downloaded upstream packages and distribution archives
+.upstream/
+*.whl
+*.zip
+*.tar.gz
+
+# Machine-local metadata
+.DS_Store
+.squad/.first-run

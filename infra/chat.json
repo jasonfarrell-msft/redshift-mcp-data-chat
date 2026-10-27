@@ -1,0 +1,277 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.48.1.52935",
+      "templateHash": "17652586322660179755"
+    }
+  },
+  "parameters": {
+    "approvedSubscription": {
+      "type": "string",
+      "defaultValue": "bb4b2781-6739-4fa1-994e-4ad6ce55c59c",
+      "allowedValues": [
+        "bb4b2781-6739-4fa1-994e-4ad6ce55c59c"
+      ]
+    },
+    "appLocation": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "allowedValues": [
+        "eastus2"
+      ]
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "redshift-chat-project",
+      "subscriptionId": "[parameters('approvedSubscription')]",
+      "resourceGroup": "rg-client-sandbox-eus2-mx01",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.48.1.52935",
+              "templateHash": "7267197595389668297"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.CognitiveServices/accounts/projects",
+              "apiVersion": "2026-09-01",
+              "name": "[format('{0}/{1}', 'foundry-sandbox-swc-mx01', 'redshift-test-project')]",
+              "location": "swedencentral",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "displayName": "redshift-test-project",
+                "description": "Synthetic Redshift metadata-only public POC"
+              }
+            }
+          ],
+          "outputs": {
+            "projectId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.CognitiveServices/accounts/projects', 'foundry-sandbox-swc-mx01', 'redshift-test-project')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "redshift-chat-app",
+      "subscriptionId": "[parameters('approvedSubscription')]",
+      "resourceGroup": "rg-redshift-bs01",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appLocation": {
+            "value": "[parameters('appLocation')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.48.1.52935",
+              "templateHash": "9802688910825097910"
+            }
+          },
+          "parameters": {
+            "appLocation": {
+              "type": "string",
+              "defaultValue": "eastus2",
+              "allowedValues": [
+                "eastus2"
+              ]
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2026-08-01",
+              "name": "asp-redshift-chat-bs01",
+              "location": "[parameters('appLocation')]",
+              "kind": "linux",
+              "sku": {
+                "name": "B1",
+                "tier": "Basic",
+                "capacity": 1
+              },
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2026-08-01",
+              "name": "app-redshift-chat-bs01-bb4b2781",
+              "location": "[parameters('appLocation')]",
+              "kind": "app,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'asp-redshift-chat-bs01')]",
+                "httpsOnly": true,
+                "clientAffinityEnabled": false,
+                "publicNetworkAccess": "Enabled",
+                "siteConfig": {
+                  "linuxFxVersion": "NODE|24-lts",
+                  "alwaysOn": true,
+                  "minTlsVersion": "1.2",
+                  "scmMinTlsVersion": "1.2",
+                  "ftpsState": "Disabled",
+                  "http20Enabled": true,
+                  "appCommandLine": "npm start",
+                  "healthCheckPath": "/healthz"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'asp-redshift-chat-bs01')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies",
+              "apiVersion": "2026-08-01",
+              "name": "[format('{0}/{1}', 'app-redshift-chat-bs01-bb4b2781', 'scm')]",
+              "properties": {
+                "allow": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies",
+              "apiVersion": "2026-08-01",
+              "name": "[format('{0}/{1}', 'app-redshift-chat-bs01-bb4b2781', 'ftp')]",
+              "properties": {
+                "allow": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781')]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781'), '2026-08-01', 'full').identity.principalId]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781'), '2026-08-01').defaultHostName]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "redshift-chat-consumer",
+      "subscriptionId": "[parameters('approvedSubscription')]",
+      "resourceGroup": "rg-client-sandbox-eus2-mx01",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "principalId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-redshift-bs01'), 'Microsoft.Resources/deployments', 'redshift-chat-app'), '2025-04-01').outputs.principalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.48.1.52935",
+              "templateHash": "5731604831918714013"
+            }
+          },
+          "parameters": {
+            "principalId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "consumerId": "eed3b665-ab3a-47b6-8f48-c9382fb1dad6",
+            "appId": "[resourceId(subscription().subscriptionId, 'rg-redshift-bs01', 'Microsoft.Web/sites', 'app-redshift-chat-bs01-bb4b2781')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts/projects', 'foundry-sandbox-swc-mx01', 'redshift-test-project')]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts/projects', 'foundry-sandbox-swc-mx01', 'redshift-test-project'), variables('appId'), variables('consumerId'))]",
+              "properties": {
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('consumerId'))]"
+              }
+            }
+          ],
+          "outputs": {
+            "assignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.CognitiveServices/accounts/projects', 'foundry-sandbox-swc-mx01', 'redshift-test-project'), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.CognitiveServices/accounts/projects', 'foundry-sandbox-swc-mx01', 'redshift-test-project'), variables('appId'), variables('consumerId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-redshift-bs01'), 'Microsoft.Resources/deployments', 'redshift-chat-app')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-client-sandbox-eus2-mx01'), 'Microsoft.Resources/deployments', 'redshift-chat-project')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "projectId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-client-sandbox-eus2-mx01'), 'Microsoft.Resources/deployments', 'redshift-chat-project'), '2025-04-01').outputs.projectId.value]"
+    },
+    "appId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-redshift-bs01'), 'Microsoft.Resources/deployments', 'redshift-chat-app'), '2025-04-01').outputs.appId.value]"
+    },
+    "principalId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-redshift-bs01'), 'Microsoft.Resources/deployments', 'redshift-chat-app'), '2025-04-01').outputs.principalId.value]"
+    },
+    "hostname": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-redshift-bs01'), 'Microsoft.Resources/deployments', 'redshift-chat-app'), '2025-04-01').outputs.hostname.value]"
+    },
+    "consumerRoleId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('approvedSubscription'), 'rg-client-sandbox-eus2-mx01'), 'Microsoft.Resources/deployments', 'redshift-chat-consumer'), '2025-04-01').outputs.assignmentId.value]"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "Detroit Lions",
+      "assignment_id": "redshift-mcp-init-20261026-091334",
+      "used_at": "2026-10-26T09:13:34-04:00"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "redshift-mcp-init-20261026-091334": {
+      "universe": "Detroit Lions",
+      "agents": {
+        "goff": "Goff",
+        "gibbs": "Gibbs",
+        "st-brown": "St. Brown",
+        "sewell": "Sewell",
+        "scribe": "Scribe",
+        "ralph": "Ralph",
+        "rai": "Rai",
+        "fact-checker": "Fact Checker"
+      },
+      "created_at": "2026-10-26T09:13:34-04:00",
+      "selection": "explicit-user-override",
+      "builtins_exempt": ["scribe", "ralph", "rai", "fact-checker"]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "approvedSubscription": {
+      "value": "bb4b2781-6739-4fa1-994e-4ad6ce55c59c"
+    },
+    "appLocation": {
+      "value": "eastus2"
+    }
+  }
+}

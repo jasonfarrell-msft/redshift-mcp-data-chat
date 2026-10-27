@@ -1,0 +1,3 @@
+[profile redshift-runtime]
+region = us-east-2
+credential_process = /opt/adapter/bin/python -m redshift_mcp_server.aws_credentials

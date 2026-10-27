@@ -1,0 +1,14 @@
+.venv/
+.build-context/
+__pycache__/
+state.json
+state.next.json
+*.tar.gz
+chat-state.json
+chat-state.next.json
+.chat-artifacts/
+.chat-*.json
+.*.lock
+node-compile-cache/
+tsx-*/
+.bicep/
