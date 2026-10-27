@@ -1,5 +1,36 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Retired custom MCP deployment removed — 2026-10-27
+
+Status: **Deleted and resource preservation verified**,20:07 UTC.
+User explicitly approved deleting only `ca-redshift-bs01` and its app-specific
+Key Vault secret-reader role after verification of the live consumer bindings.
+The old direct-connector deployment was still running one replica; it is now
+absent and is no longer a rollback target.
+
+Fresh readback confirmed the current chat uses agent3 and the official-backed
+health URL. The actual registered Foundry agent3 MCP tool also points to
+`ca-redshift-official-bs01`, not the retired service. The retained Python project
+is the required policy adapter around AWS's unmodified published MCP server,
+not an unused standalone direct connector; no active source directory was deleted.
+
+Deletion guards verified the exact old app image, revision and system-assigned
+principal, plus the single secret-scoped Key Vault reader assignment owned by
+that principal. One app DELETE and one role-assignment DELETE were performed;
+subsequent GETs confirmed both absent. The active chat and official-backed
+service's templates, configuration, identity, environment and ready revisions
+were read back unchanged. No shared resource, registry image, retained identity,
+Key Vault or secret was deleted.
+
+Sanitized intent/result and follow-up hosted acceptance are retained under
+`.azure/legacy-mcp-retirement-proof/` (ignored). Historical rollback instructions
+below that require the deleted custom deployment are no longer executable.
+
+A fresh hosted question passed after deletion at20:09 UTC:2025 oil returned
+exactly21157564.26bbl with actual current-turn `get_data_context` and
+`analyze_data` tool evidence and `continued=false`. The retired app is not
+required by the working chat path.
+
 ## Chat Markdown release — 2026-10-27
 
 Status: **Deployed and verified**,2026-10-27 19:29 UTC. User approved deployment to the existing web

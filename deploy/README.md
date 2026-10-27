@@ -1,6 +1,21 @@
 # Approved synthetic POC deployment
 
-## Analytics release v3 — deployed; hosted acceptance BLOCKED
+## Current runtime and retired custom deployment
+
+The live chat and Foundry agent3 use `ca-redshift-official-bs01`: our required
+HTTP policy adapter runs AWS's unmodified published Redshift MCP server over
+stdio. The retired direct-connector app `ca-redshift-bs01` and its single
+app-specific Key Vault secret-reader role were deleted with user approval
+on2026-10-27. The active chat, AWS-backed service, shared environment, registry,
+managed identities and other shared resources were retained.
+
+Do not run the historical bootstrap/update commands below to recreate the
+deleted app. They document earlier releases, not the current deployment.
+`deploy.py` also contains shared helpers imported by current deployment tooling;
+it cannot be removed wholesale. Current release evidence and targets are in
+`.azure/deployment-plan.md`.
+
+## Historical analytics release v3 — superseded
 
 The user-approved, independently reviewed and officially validated frozen release
 was deployed on 2026-10-26. MCP v3 passed actual independent numerical/source

@@ -1,8 +1,23 @@
 # Chat migration to Azure Container Apps
 
-## Official-backed chat cutover deployed and verified — 2026-10-27
+## Current deployment and legacy retirement — 2026-10-27
 
-The current release is `ca-redshift-chat-bs01--official3600`, exact Foundry
+Current chat revision: `ca-redshift-chat-bs01--markdown-103d6b00cc`.
+Current AWS-backed adapter revision:
+`ca-redshift-official-bs01--warm-bb275f8677`. Foundry agent3 and the chat health
+probe both use the official-backed endpoint below. AWS's published MCP server
+remains unmodified; the local policy adapter is still required.
+
+The obsolete direct-connector Container App `ca-redshift-bs01` and its own
+Key Vault secret-reader role were deleted with user approval. Neither active
+application was changed. Shared resources and identities were retained.
+The deleted deployment is no longer a rollback target; older cutover/rollback
+instructions below are historical. See `.azure/deployment-plan.md` for current
+release and retirement evidence.
+
+## Historical official-backed chat cutover — 2026-10-27
+
+The original official-backed release was `ca-redshift-chat-bs01--official3600`, exact Foundry
 agent version **3**, with both the agent MCP tool and BFF health probe bound to
 `https://ca-redshift-official-bs01.happygrass-e982f5d6.brazilsouth.azurecontainerapps.io/mcp`.
 Public chat:
@@ -55,13 +70,13 @@ Latest proof:
 Release/build/validation/final live-state proof: `.azure/official-refresh-build/`,
 especially `final-release-proof.json`.
 
-Rollback retains `.azure/official-chat-release.json` (original template and
+Historical rollback artifacts include `.azure/official-chat-release.json` (original template and
 paired binding), original agent2, old MCP, and original chat image
 `sha256:1cdf2a6a97fad3a9bbef6514ef0eec875b8fbf82663ac65d5bb11184fb072593`.
-Use `official_cutover.py prepare-rollback` with the reviewed original release
-hash and a fresh explicit suffix, then its guarded `apply` with the resulting
-artifact hash and current evidence gates. It restores image+agent2+old probe
-together; never invoke legacy App Service stages or delete old resources.
+That legacy target was deleted on2026-10-27. Do not invoke
+`official_cutover.py prepare-rollback` to restore agent2 and the deleted endpoint.
+Any future rollback must retain an available official-backed service and the
+paired current agent/health bindings; never invoke legacy App Service stages.
 Normal release replaces in-memory sessions; each acceptance cookie stays only
 in memory. Historical progress sections below are preserved, not current state.
 

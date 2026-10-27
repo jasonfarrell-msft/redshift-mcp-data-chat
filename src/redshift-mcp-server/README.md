@@ -1,14 +1,27 @@
-# Redshift structured analytics MCP server
+# Redshift analytics policy adapter for AWS MCP
 
-A small Python server using the **official Python MCP SDK** (`mcp`) and AWS's
-**`redshift-connector`**. Default transport: **Streamable HTTP**, listening only at
-**http://127.0.0.1:8000/mcp**. No arbitrary SQL tool or database
-connection at import/startup.
+The deployed application uses the unmodified published
+**`awslabs.redshift-mcp-server==0.1.2`** for all Redshift execution. There is no
+direct database-driver or application-owned Data API query fallback.
+
+This project remains required: it is the Streamable HTTP policy adapter around
+AWS's stdio server, providing closed analytics plans, read-only enforcement,
+reconciliation, bounded results and warm worker management. It is not itself an
+AWS-published server. Deleting this directory would break the active application.
+Default local transport: **http://127.0.0.1:8000/mcp**; no database connection at
+import/startup.
+
+The live Foundry agent version3 and chat health probe both use
+`https://ca-redshift-official-bs01.happygrass-e982f5d6.brazilsouth.azurecontainerapps.io/mcp`.
+The retired direct-connector Container App `ca-redshift-bs01` and its own Key Vault
+secret-reader role were deleted with user approval on2026-10-27. Shared resources
+and the active AWS-backed adapter were retained. The deleted app is no longer a
+rollback target.
 
 The package lives at `src/redshift-mcp-server/redshift_mcp_server/` relative
 to the workspace root; there is no second, project-local `src` directory.
 
-## Structured analytics (implemented locally, not deployed)
+## Structured analytics (deployed through AWS MCP)
 
 `get_data_context()` returns live observed production/price dates and a bounded
 semantic catalog. `analyze_data(plan)` accepts a strict Pydantic version-1 plan:
@@ -66,8 +79,18 @@ verified TLS, 10-second **per-statement** timeout, READ ONLY and unconditional
 rollback remain. These are bounded operations, not a distributed spending cap:
 LIMIT is not a scan cap, and a rollup check still scans bounded daily data.
 The existing single-replica POC remains public; reset/restart/multiple replicas
-reset or multiply process-local protections. The disclosed superuser identity
-was explicitly retained by the user for this synthetic POC only.
+reset or multiply process-local protections. The current AWS-backed runtime uses
+a restricted, nonsuperuser IAM-mapped database principal with five-table SELECT
+access, not the retired connector's credentials.
+
+## Historical direct-connector setup and hosting
+
+The setup, password/IAM-driver configuration, metadata-only tool list and original
+hosting instructions in the following sections describe the retired deployment.
+They are retained as history, not instructions for configuring the active
+AWS-backed runtime. See **Official AWS MCP runtime** below for the current
+execution path and required runtime settings. Do not recreate the deleted app
+with the historical deployment helpers.
 
 ## Setup (macOS/Linux)
 
@@ -377,13 +400,14 @@ acceptance gate.
 `--allow-unsafe` is pip-tools terminology for retaining packages such as
 `setuptools`: Redshift's connector declares it as a runtime dependency, so it
 must also be explicitly pinned and hashed. Do not omit it from the runtime lock.
-# Official AWS MCP migration candidate — not deployed
+# Official AWS MCP runtime
 
 The governed HTTP service now executes its existing structured analytics and
 metadata operations through the published **AWS
 `awslabs.redshift-mcp-server==0.1.2`** stdio server. It is an application policy
 adapter, not an AWS-published HTTP server. No direct driver or Boto3-query
-fallback exists. Production version3 is retained separately for rollback.
+fallback exists. The retired custom deployment has been deleted; historical
+image artifacts do not imply an available legacy rollback service.
 
 The official Python wheel SHA256, verified against public PyPI release metadata:
 `03a3fff27161cf0bd3e75765eb9c8ef5f1cfe920811015dcb2c543d712826b40`.
@@ -439,15 +463,16 @@ deleting an individual HTTP MCP session never stops the shared warm pool.
 Stdio application exit also stops workers. These paths and a fallback process
 exit hook stop workers once and join their threads under one shared eight-second
 budget; SDK stdio teardown closes input and escalates process-group termination.
-Shutdown does not restore capacity in a running service. Actual live latency
-savings have not yet been measured.
+Shutdown does not restore capacity in a running service. Measured live warm-path
+improvements are recorded in `.azure/deployment-plan.md`; they are observations,
+not latency guarantees.
 
 Local protocol validation uses the real pinned SDK2 executable and actual MCP
 initialize/list-tools/call-tool against SDK1, with ONLY AWS execution replaced
 by offline fixtures. Missing upstream dependencies block this proof/cutover;
 do not call mocks a successful interoperability test.
 
-The original connector documentation below is retained as historical context;
-password/driver instructions no longer describe the candidate execution path.
+The earlier connector documentation is historical context; its password/driver
+instructions do not describe the deployed execution path.
 
 ---
