@@ -1,6 +1,5 @@
 export const LIMITS = Object.freeze({
   inputCharacters: 2000,
-  outputTokens: 800,
   toolCalls: 4,
   turns: 20,
   concurrentChats: 2,

@@ -161,7 +161,6 @@ export function validateAnalysis(value: Record<string, unknown>) {
 
 export function groundedReply(text: unknown, analyses: ReturnType<typeof validateAnalysis>[]) {
   if (typeof text !== 'string' || !text.trim()) throw new AppError(502, 'EMPTY_REPLY');
-  if (text.length > 16_000) return fail();
   let value: unknown;
   try { value = JSON.parse(text); } catch { return fail(); }
   if (!object(value)) return fail();
@@ -190,6 +189,5 @@ export function groundedReply(text: unknown, analyses: ReturnType<typeof validat
       ? ['Some measure observations are null (unknown, not zero); available aggregates do not establish a complete total.'] : []),
   ];
   const reply = [...caveats, value.reply.trim()].join('\n\n');
-  if (reply.length > 16_000) return fail();
   return { reply, truncated };
 }

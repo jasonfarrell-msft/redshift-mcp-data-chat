@@ -184,7 +184,6 @@ await openai.responses.create(
   {
     input: message,
     previous_response_id: serverOwnedPreviousId, // omitted on the first turn
-    max_output_tokens: 800,
     max_tool_calls: 4,
     stream: false,
     store: true,
@@ -202,6 +201,13 @@ await openai.responses.create(
   },
 );
 ```
+
+The application does not send an output-token limit or impose a completed-answer
+character limit; the selected model/service determines its output-token ceiling.
+Longer answers can consume more tokens and cost more. The 230-second request
+deadline, four-tool budget, concurrency limits, bounded MCP results and strict
+fresh-execution/JSON validation remain in force. Incomplete model responses still
+fail closed rather than displaying a partial answer as complete.
 
 The SDK's API-version enum is type-only exported, so the source uses the exact
 verified literal `'v1' as KnownApiVersions`, not an invented API version.
@@ -358,11 +364,11 @@ start a new chain. Reset is explicit recovery and does not delete Foundry data.
   cancellation and returns a fixed timeout. Its slot stays occupied until actual
   underlying work/cleanup settles; a late result cannot advance the chain.
   An uncertain timed-out chain requires New chat, not silent continuation.
-- 2,000 UTF-16 input code units, 800 output tokens (including model reasoning),
-  four tool calls, 230-second chat deadline, no automatic retries. Empty output
-  fails safely; incomplete output-budget responses now fail closed rather than
-  returning unparseable partial JSON. Final protocol text above 16,000 characters
-  is rejected, never silently sliced into an apparently successful answer.
+- 2,000 UTF-16 input code units, four tool calls, 230-second chat deadline, no
+  automatic retries. There is no application output-token or completed-answer
+  character cap; the selected model/service imposes its own token ceiling.
+  Empty output fails safely; incomplete model responses still fail closed rather
+  than returning partial JSON or an apparently complete answer.
 - Maximum 1,000 session entries / 10,000 rate entries; expired inactive entries
   are evicted, capacity rejects new entries rather than resetting protections.
 - Five requests/minute per verified **socket IP**, shared by **all** `/api/*`

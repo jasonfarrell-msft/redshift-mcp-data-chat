@@ -2,7 +2,10 @@
 
 ## Current deployment and legacy retirement — 2026-10-27
 
-Current chat revision: `ca-redshift-chat-bs01--markdown-103d6b00cc`.
+Current chat revision: `ca-redshift-chat-bs01--native-44c31604f9`.
+The chat no longer supplies an output-token ceiling or rejects completed answers
+solely for exceeding 16,000 characters; model/service output limits apply.
+Timeouts, concurrency limits and strict fresh MCP grounding remain unchanged.
 Current AWS-backed adapter revision:
 `ca-redshift-official-bs01--warm-bb275f8677`. Foundry agent3 and the chat health
 probe both use the official-backed endpoint below. AWS's published MCP server

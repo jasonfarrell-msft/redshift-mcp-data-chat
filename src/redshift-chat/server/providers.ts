@@ -18,7 +18,6 @@ export function agentPayload(config: Config, request: AgentRequest) {
     request: {
       input: request.message,
       ...(request.previousResponseId ? { previous_response_id: request.previousResponseId } : {}),
-      max_output_tokens: LIMITS.outputTokens,
       max_tool_calls: LIMITS.toolCalls,
       stream: false as const,
       store: true,

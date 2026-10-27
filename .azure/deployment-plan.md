@@ -1,5 +1,76 @@
 # AWS official Redshift MCP migration — scoped approval recorded; live ACA retained
 
+## Model-native answer limit release — 2026-10-27
+
+Status: **Deployed and verified.**
+User directive: no application token limit beyond the model's own ceiling.
+Remove `max_output_tokens` from the Foundry request and remove the coupled
+16,000-character completed-answer gates. Keep strict JSON/fresh MCP grounding,
+incomplete-response rejection, read-only execution, tool/result limits,
+230-second deadline, concurrency and scale unchanged. Longer answers may consume
+more model tokens and cost more; no new Azure resource or permission is needed.
+
+Release scope: one immutable chat image and an image/revision-only update to
+`ca-redshift-chat-bs01`, retaining all live configuration and the agent3/official
+MCP bindings. Preserve the current Markdown image for rollback. Existing
+in-memory conversations reset at rollout. Use the reviewed snapshot-preserving
+ARM validation/what-if and guarded image-only update process documented below.
+Acceptance must repeat the detailed 2025 monthly/state oil, gas and operating-cost
+question that previously returned 60 valid MCP rows but stopped at exactly
+800 output tokens with `max_output_tokens`. Keep execution bounded to one
+initial attempt plus one targeted correction/retry per failed stage.
+
+User approved deployment to the existing Brazil South chat app, including chat
+reset and higher possible token usage. All 109 chat tests, typecheck and production
+build passed. An independent Devil's Advocate review approved the supplied code
+semantics; the initial reviewer could not access filesystem tools. The reviewer
+confirmed that retained deadlines/concurrency constrain operational exposure,
+not a hard cumulative token or monetary budget.
+
+All validation checks pass — MODEL-NATIVE ANSWER LIMIT scope:
+- [x] Core AZCLI authentication, current GA API, snapshot-preserving ARM validation
+  and what-if; only chat image/revision may change.
+- [x] Immutable Linux/AMD64 image build and exact installed backend verification.
+- [x] Azure Policy validation and unchanged least-privilege role assignments.
+
+### Section 7: Validation Proof — model-native answer limit
+
+All 109 chat tests, typecheck and production build passed. ACR Linux/AMD64 build
+`cqa` succeeded for source fingerprint
+`44c31604f947c898efe7763ee121eeb137c834b6ba67658cbe597b073deaf235`.
+Immutable chat image:
+`sha256:4f870df62a499741e77d68d8c87548c24455b3b653653301725d0fa669ea8ebb`.
+A network-disabled, read-only run of that exact image matched all 11 built files
+against the local build, confirmed both output-token fields absent, and accepted
+a completed answer beyond 16,000 characters.
+
+`az account show`, provider API readback and target context checks passed; the
+latest listed GA Container Apps API remains `2026-07-01`. ARM validation and
+what-if succeeded. The only effective changes are the chat container image and
+revision suffix. Existing configuration, identity, agent3, official MCP binding,
+probes, limits and scale are preserved. No role resources are in the template;
+the exact two Foundry roles and registry-scoped AcrPull assignment were checked.
+Applicable resource-group policy assignments: none.
+
+Proof and nonsecret rollback baseline: `.azure/chat-native-limit-proof/` (ignored).
+Expected revision: `ca-redshift-chat-bs01--native-44c31604f9`.
+Two local verification-harness issues were corrected once each: incompatible
+role-list CLI flags and relative nested what-if field paths. Neither required
+an Azure resource write or another build.
+
+The guarded image-only update completed at 20:42 UTC. One active Healthy revision
+serves all traffic. Chat configuration, identities, environment, agent3 and
+official MCP binding are unchanged, and the MCP adapter's configuration,
+identity and template are unchanged. Public process health, exact frontend asset
+and live least-privilege role-preservation checks passed.
+
+At 20:43 UTC the same detailed question that previously exhausted the 800-token
+cap returned HTTP 200 with all 60 Markdown data rows, 7,417 reply characters,
+`truncated=false` and fresh `get_data_context` plus `analyze_data` evidence.
+It completed in 72.755 seconds with `continued=false`. Hosted acceptance passed
+without a retry; the app imposes no output-token ceiling. Model/service limits,
+request deadlines and the other unchanged safeguards still apply.
+
 ## Retired custom MCP deployment removed — 2026-10-27
 
 Status: **Deleted and resource preservation verified**,20:07 UTC.

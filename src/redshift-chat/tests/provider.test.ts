@@ -24,13 +24,13 @@ const analysisCall = (output: unknown = analysisOutput, extra = {}) => ({
   type: 'mcp_call', name: 'analyze_data', status: 'completed', output, error: null, ...extra,
 });
 
-test('registered-agent SDK shape has fixed budgets, no model, no preview, and server continuation', async () => {
+test('registered-agent SDK shape has no app token cap, no model, no preview, and server continuation', async () => {
   const controller = new AbortController();
   const input = { message: 'List schemas', previousResponseId: 'server-owned-id', signal: controller.signal };
   const payload = agentPayload(config, input);
   assert.deepEqual(payload.request, {
     input: 'List schemas', previous_response_id: 'server-owned-id',
-    max_output_tokens: 800, max_tool_calls: 4, stream: false, store: true,
+    max_tool_calls: 4, stream: false, store: true,
   });
   assert.deepEqual(payload.options.body, {
     agent_reference: { name: 'redshift-chat-agent', type: 'agent_reference', version: '3' },
@@ -39,6 +39,8 @@ test('registered-agent SDK shape has fixed budgets, no model, no preview, and se
   assert.equal(payload.options.timeout, 230_000);
   assert.equal(payload.options.signal, controller.signal);
   assert.equal('model' in payload.request, false);
+  assert.equal('max_output_tokens' in payload.request, false);
+  assert.equal('max_tokens' in payload.request, false);
   const agent = createAgent(config, async (sent) => {
     assert.deepEqual(sent.request, payload.request);
     return success();
@@ -143,7 +145,8 @@ test('actual official SDK serializes the GA project URL and agent_reference body
     assert.equal(body.agent_reference.version, '3');
     assert.equal(body.previous_response_id, 'owned-by-server');
     assert.equal(body.max_tool_calls, 4);
-    assert.equal(body.max_output_tokens, 800);
+    assert.equal('max_output_tokens' in body, false);
+    assert.equal('max_tokens' in body, false);
     assert.equal('model' in body, false);
     return Response.json({
       id: 'SDK-response', object: 'response', status: 'completed', output: [{
@@ -449,15 +452,41 @@ test('non-data responses use only server-owned reason templates, never model pro
   }
 });
 
-test('strict answer protocol rejects unknown, extra, malformed, oversized and plain text output', async () => {
+test('strict answer protocol rejects unknown, extra, malformed and plain text output', async () => {
   for (const output_text of [
     '{}', '[]', 'null', '{"kind":"answer","reply":', '```json\n' + answer() + '\n```',
     answer(''), JSON.stringify({ kind: 'answer', reply: '123.45 bbl', reason: 'missing_period' }),
-    JSON.stringify({ kind: 'unknown', reply: '123.45 bbl' }), answer('x'.repeat(16_001)),
+    JSON.stringify({ kind: 'unknown', reply: '123.45 bbl' }),
   ]) {
     const agent = createAgent(config, async () => success({ output_text, output: [analysisCall()] }));
     await assert.rejects(() => agent({ message: 'Total?', signal: AbortSignal.timeout(100) }));
   }
+});
+
+test('completed grounded answers have no application character cap', async () => {
+  const reply = 'A detailed grounded result. '.repeat(1000);
+  assert.ok(reply.length > 16_000);
+  const agent = createAgent(config, async () => success({
+    output_text: answer(reply), output: [analysisCall()],
+  }));
+  const result = await agent({ message: 'Detailed breakdown?', signal: AbortSignal.timeout(100) });
+  assert.equal(result.reply, reply.trim());
+  assert.equal(result.truncated, false);
+  const ungrounded = createAgent(config, async () => success({ output_text: answer(reply) }));
+  await assert.rejects(() => ungrounded({ message: 'Detailed breakdown?', signal: AbortSignal.timeout(100) }));
+});
+
+test('large completed answers retain server-owned partial-result caveats', async () => {
+  const reply = 'A detailed partial result. '.repeat(1000);
+  const agent = createAgent(config, async () => success({
+    output_text: answer(reply),
+    output: [analysisCall(JSON.stringify({ ...analysisValue, status: 'truncated', truncated: true }))],
+  }));
+  const result = await agent({ message: 'Detailed breakdown?', signal: AbortSignal.timeout(100) });
+  assert.ok(result.reply.length > 16_000);
+  assert.ok(result.reply.startsWith('Partial/truncated executed result:'));
+  assert.ok(result.reply.endsWith(reply.trim()));
+  assert.equal(result.truncated, true);
 });
 
 test('failed/incomplete calls and malformed executed result fields cannot ground an answer', async () => {
